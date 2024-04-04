@@ -93,7 +93,7 @@
     "eslint-config-airbnb-typescript": "^18.0.0",
     "typescript": "^5.4.3"
   },
-  "packageManager": "npm@10.5.0",
+  "packageManager": "pnpm",
   "volta": {
     "node": "18.20.1"
   }
