@@ -1,27 +1,64 @@
 version: "3.8"
 services:
-  devin:
-    container_name: opendevin
+  # Devin Out-of-The-Box Agent Service
+  app:
+    container_name: devin-app
+    hostname: oppendevin
+    image: oppendevin-cuda_${CUDA_VERSION:?}-conda:latest
+    pull_policy: always
     build:
-      dockerfile: ./docker/devin/Dockerfile
+      dockerfile: docker/devin/app/Dockerfile
       args:
-        ws_dir: ${WS_DIR:?}
-        venv_dir: ${VENV_DIR:?}
-        conda_dir: ${CONDA_DIR:?}
+        litellm_port: ${LITELLM_PORT:?}
+        jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-        node_version: ${NODE_VERSION:?}
-    env_file: ./.env
+        conda_dir: ${APP_DIR:?}/.conda
+        nvidia_utils_driver: 550
+        app_dir: /opt/opendevin
+        venv_name: ${VENV_NAME:?}
+        locale: ${LANG:?}
+        timezone: ${TZ:?}
+    env_file:
+      - ./.env
+      - docker/devin/app/.env
+    command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
-      - backends
+      - litellm
+      - mitm
+      - postgres
+      - redis
     networks:
-      - opendevin-net
+      opendevin-net:
+        ipv4_address: ${APP_HOST:?}
     volumes:
-      - ./workspace:${WS_DIR:?}
-    command: ["npm", "start"]
+      - root_dir_vol:/root
+      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
+      - conda_vol:${CONDA_PREFIX:?}:tmpfs=4G
+      - od_vol:${APP_DIR:?}
+      - ./requirements.txt:${APP_DIR:?}/requirements.txt
+      - ./environment.yml:${APP_DIR:?}/environment.yml
+      - ./workspace:${APP_DIR:?}/workspace
+      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
+      # Uncomment mounts if needed for development
+      # - ./Makefile:${BUILD_DIR:?}/
+      # - ./pyproject.toml:${BUILD_DIR:?}/
+      # - ./config.toml.template:${BUILD_DIR:?}/
+      # - ./.env:${BUILD_DIR:?}/
+      # - ./opendevin:${BUILD_DIR:?}/
+      # - ./agenthub:${BUILD_DIR:?}/
+      # - ./dev_config:${BUILD_DIR:?}/
+      # - ./evaluation:${BUILD_DIR:?}/
+      # - ./tests:${BUILD_DIR:?}/
+    working_dir: ${APP_DIR}
+    tmpfs:
+      - /run
+      - /tmp
+      - /var/run
     ports:
-      - "0.0.0.0:4173:4173"
-      - "0.0.0.0:3000:3000"
-      - "0.0.0.0:3001:3001"
+      - "${APP_PORT}:${APP_PORT}"
+      - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
+    tty: true
+    stdin_open: true
     restart: no
     deploy:
       resources:
@@ -31,75 +68,105 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
-  backends:
-    container_name: llm-backends
-    hostname: llm-backends
-    build:
-      dockerfile: docker/backends/Dockerfile
-      args:
-        venv_dir: ${VENV_DIR:?}
-        litellm_port: ${LITELLM_PORT:?}
-        jupyter_port: ${JUPYTER_PORT:?}
-        debug: ${DEBUG:-}
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    pull_policy: always
+    container_name: litellm_backend
+    command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
     environment:
-      HTTP_PROXY:
-      HTTPS_PROXY:
-    entrypoint: "/entrypoint.sh"
-    env_file: ./.env
-    platform: linux/amd64
+      LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:?}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_CONTAINER_PORT}/${POSTGRES_DB}
     ports:
-      - "${LITELLM_PORT}:${LITELLM_PORT}"
-      - "${JUPYTER_PORT}:${JUPYTER_PORT}"
-    tty: true
+      - "${LITELLM_PORT}:4000"
     volumes:
-      - ./docker/backends/litellm_config.yaml:/etc/litellm_config.yaml
-      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
+      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
+      - ./docker/litellm/config.yaml:/etc/config.yaml
+      - ./docker/env_debug.sh:/usr/local/bin/env_debug
     depends_on:
-      - proxy
+      - redis
+      - postgres
       - ollama
     networks:
       - opendevin-net
     healthcheck:
-      test: ["CMD", "litellm", "--health"]
+      test: [ "CMD", "litellm", "--health" ]
       interval: 1m
       timeout: 10s
       retries: 3
       start_period: 2m
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: "nvidia"
-              count: 1
-              capabilities: [ "gpu" ]
+    tmpfs:
+      - /run
+      - /var/run
+      - /tmp
+      - /var/tmp
 
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    hostname: ollama
-    environment:
-      OLLAMA_MODELS: ${HOST_OLLAMA_MODELS_DIR:?}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:?}
-      OLLAMA_HOST: ${OLLAMA_BIND_HOST:?}
-      OLLAMA_ORIGINS: ${OLLAMA_ORIGINS}
-    env_file: ./.env
-    tty: true
+  redis:
+    image: redis/redis-stack:latest
+    pull_policy: always
+    container_name: redis-stack-server
+    env_file:
+      - .env
+      - docker/redis/redis.env
+    ports:
+      - "0.0.0.0:${REDIS_SERVER_PORT}:6379"
+      - "0.0.0.0:${REDIS_INSIGHT_PORT}:8001"
     volumes:
-      - ${HOST_OLLAMA_MODELS_DIR}:/root/.ollama/models
-      - ./workspace:${WS_DIR}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: "nvidia"
-              count: 1
-              capabilities: [ "gpu" ]
-    depends_on:
-      - proxy
+      - redis_data:${REDIS_DATA:-/data}
     networks:
       - opendevin-net
 
-  proxy:
+  postgres:
+    image: postgres:latest
+    pull_policy: always
+    container_name: db-postgres
+    env_file:
+      - .env
+      - docker/postgres/postgres.env
+    volumes:
+      - posgtres_data:${POSTGRES_DATA:-/var/lib/postgres}
+    ports:
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
+    tmpfs:
+      - /var/run:size=1m
+      - /tmp
+    networks:
+      - opendevin-net
+
+  # Ollama service
+  ollama:
+    image: ollama/ollama
+    pull_policy: always
+    container_name: ollama-service
+    hostname: ollama
+    platform: linux/amd64
+    env_file:
+      - .env
+      - docker/ollama/ollama.env
+    tty: false
+    ports:
+      - "22434:11434"
+    volumes:
+      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
+      - pip_cache_vol:/root/.cache/pip
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [ "gpu" ]
+
+    networks:
+      - opendevin-net
+    tmpfs:
+      - /run
+      - /var/run
+      - /tmp
+      - /var/tmp
+
+  mitm:
+    image: oppendevin-mitmproxy_${MITMPROXY_VERSION:?}
+    pull_policy: always
     build:
       dockerfile: ./docker/mitmproxy/Dockerfile
       args:
@@ -109,7 +176,7 @@ services:
         uid: 1000
         gid: 1000
     container_name: mitmproxy
-    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://${LITELLM_PORT}:11434@44444 --verbose --anticache --anticomp"
+    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://ollama:11434@44444 --verbose --anticache --anticomp"
     networks:
       - opendevin-net
     volumes:
@@ -118,12 +185,57 @@ services:
     stdin_open: true
     ports:
       - "0.0.0.0:8081:8081"
+    tmpfs:
+      - /run
+      - /var/run
+      - /tmp
+      - /var/tmp
 
+  # UI service
+  ui:
+    container_name: devin-ui
+    image: oppendevin_ui-node_${NODE_VERSION:?}-npm_${NPM_VERSION}-pnpm-reactjs
+    pull_policy: always
+    build:
+      dockerfile: docker/devin/ui/Dockerfile
+      args:
+        ui_dir: ${UI_DIR:?}
+        node_version: ${NODE_VERSION:?}
+        npm_version: ${NPM_VERSION:?}
+        node_env: ${NODE_ENV:-production}
+        debug: ${DEBUG:?}
+    env_file:
+      - ./.env
+      - docker/devin/ui/.env
+    environment:
+      BACKEND_HOST: ${APP_HOST:?}:${APP_PORT:?}
+      FRONTEND_PORT: ${APP_PORT:?}
+    networks:
+      - opendevin-net
+    ports:
+      - "${UI_HTTP_PORT:?}:${UI_HTTP_PORT:?}"
+      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
+    depends_on:
+      - app
+    tty: true
+    command: "vite --host 0.0.0.0 --port ${UI_HTTP_PORT:?}"
+    working_dir: ${UI_DIR:?}
+    volumes:
+      - ./frontend/dist:${UI_DIR:?}/
+      - ./frontend/src:${UI_DIR:?}/
 
 networks:
   opendevin-net:
     ipam:
       driver: default
       config:
-        - subnet: 172.28.111.0/24
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.111.1
 
+volumes:
+  root_dir_vol:
+  posgtres_data:
+  redis_data:
+  pip_cache_vol:
+  conda_vol:
+  od_vol:

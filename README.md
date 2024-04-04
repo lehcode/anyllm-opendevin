@@ -7,8 +7,6 @@
 *** Thanks again! Now go create something AMAZING! :D
 -->
 
-
-
 <!-- PROJECT SHIELDS -->
 <!--
 *** I'm using markdown "reference style" links for readability.
@@ -34,8 +32,6 @@
   <img src="./logo.png" alt="Logo" width="200" height="200">
   <h1 align="center">OpenDevin: Code Less, Make More</h1>
 </div>
-
-
 
 
 <!-- TABLE OF CONTENTS -->
@@ -111,12 +107,6 @@ After completing the MVP, the team will focus on research in various areas, incl
     </a>
 </p>
 
-## ⚠️ Caveats and Warnings
-* OpenDevin is still an alpha project. It is changing very quickly and is unstable. We are working on getting a stable release out in the coming weeks.
-* OpenDevin will issue many prompts to the LLM you configure. Most of these LLMs cost money--be sure to set spending limits and monitor usage.
-* OpenDevin runs `bash` commands within a Docker sandbox, so it should not affect your machine. But your workspace directory will be attached to that sandbox, and files in the directory may be modified or deleted.
-* Our default Agent is currently the MonologueAgent, which has limited capabilities, but is fairly stable. We're working on other Agent implementations, including [SWE Agent](https://swe-agent.com/). You can [read about our current set of agents here](./docs/documentation/Agents.md).
-
 ## 🚀 Get Started
 
 Getting started with the OpenDevin project is incredibly easy. Follow these simple steps to set up and run OpenDevin on your system:
@@ -143,45 +133,39 @@ OpenDevin supports a diverse array of Language Models (LMs) through the powerful
 
 To configure the LM of your choice, follow these steps:
 
-1. **Using the Makefile: The Effortless Approach**
-   With a single command, you can have a smooth LM setup for your OpenDevin experience. Simply run:
-   ```bash
-   make setup-config
-   ```
-   This command will prompt you to enter the LLM API key and model name, ensuring that OpenDevin is tailored to your specific needs.
+Нou can manually update the `config.toml` file located in the project's root directory. Here, you'll find the `LLM_API_KEY` and `LLM_MODEL_NAME` fields, where you can set the LM of your choosing.
+You can configure the LLM Embedding Model using `LLM_EMBEDDING_MODEL` key in `config.toml`.
+
+```bash config.toml
+LLM_API_KEY="sk-12345678"
+LLM_MODEL="mistral"
+LLM_EMBEDDING_MODEL="llama2"
+```
 
 **Note on Alternative Models:**
 Some alternative models may prove more challenging to tame than others. Fear not, brave adventurer! We shall soon unveil LLM-specific documentation to guide you on your quest. And if you've already mastered the art of wielding a model other than OpenAI's GPT, we encourage you to [share your setup instructions with us](https://github.com/OpenDevin/OpenDevin/issues/417).
 
 For a full list of the LM providers and models available, please consult the [litellm documentation](https://docs.litellm.ai/docs/providers).
 
-There is also [documentation for running with local models using ollama](./docs/documentation/LOCAL_LLM_GUIDE.md).
-
 ### 4. Run the Application
 
 - **Run the Application:** Once the setup is complete, launching OpenDevin is as simple as running a single command. This command starts both the backend and frontend servers seamlessly, allowing you to interact with OpenDevin without any hassle.
     ```bash
-    make run
+    docker compose up
     ```
 
 ### 5. Individual Server Startup
 
 - **Start the Backend Server:** If you prefer, you can start the backend server independently to focus on backend-related tasks or configurations.
     ```bash
-    make start-backend
+    docker compose up devin-app
     ```
 
 - **Start the Frontend Server:** Similarly, you can start the frontend server on its own to work on frontend-related components or interface enhancements.
     ```bash
-    make start-frontend
+    docker compose up devin-ui
     ```
-
-### 6. Help
-
-- **Get Some Help:** Need assistance or information on available targets and commands? The help command provides all the necessary guidance to ensure a smooth experience with OpenDevin.
-    ```bash
-    make help
-    ```
+  
 
 <p align="right" style="font-size: 14px; color: #555; margin-top: 20px;">
     <a href="#readme-top" style="text-decoration: none; color: #007bff; font-weight: bold;">
