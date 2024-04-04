@@ -200,3 +200,7 @@ logs
 
 # configuration
 config.toml
+
+.mitmproxy/mitmproxy-*
+.ollama/models
+.ollama/id_*

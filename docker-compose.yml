@@ -1,0 +1,129 @@
+version: "3.8"
+services:
+  devin:
+    container_name: opendevin
+    build:
+      dockerfile: ./docker/devin/Dockerfile
+      args:
+        ws_dir: ${WS_DIR:?}
+        venv_dir: ${VENV_DIR:?}
+        conda_dir: ${CONDA_DIR:?}
+        debug: ${DEBUG:-}
+        node_version: ${NODE_VERSION:?}
+    env_file: ./.env
+    depends_on:
+      - backends
+    networks:
+      - opendevin-net
+    volumes:
+      - ./workspace:${WS_DIR:?}
+    command: ["npm", "start"]
+    ports:
+      - "0.0.0.0:4173:4173"
+      - "0.0.0.0:3000:3000"
+      - "0.0.0.0:3001:3001"
+    restart: no
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [ "gpu" ]
+
+  backends:
+    container_name: llm-backends
+    hostname: llm-backends
+    build:
+      dockerfile: docker/backends/Dockerfile
+      args:
+        venv_dir: ${VENV_DIR:?}
+        litellm_port: ${LITELLM_PORT:?}
+        jupyter_port: ${JUPYTER_PORT:?}
+        debug: ${DEBUG:-}
+    environment:
+      HTTP_PROXY:
+      HTTPS_PROXY:
+    entrypoint: "/entrypoint.sh"
+    env_file: ./.env
+    platform: linux/amd64
+    ports:
+      - "${LITELLM_PORT}:${LITELLM_PORT}"
+      - "${JUPYTER_PORT}:${JUPYTER_PORT}"
+    tty: true
+    volumes:
+      - ./docker/backends/litellm_config.yaml:/etc/litellm_config.yaml
+      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
+    depends_on:
+      - proxy
+      - ollama
+    networks:
+      - opendevin-net
+    healthcheck:
+      test: ["CMD", "litellm", "--health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [ "gpu" ]
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    hostname: ollama
+    environment:
+      OLLAMA_MODELS: ${HOST_OLLAMA_MODELS_DIR:?}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:?}
+      OLLAMA_HOST: ${OLLAMA_BIND_HOST:?}
+      OLLAMA_ORIGINS: ${OLLAMA_ORIGINS}
+    env_file: ./.env
+    tty: true
+    volumes:
+      - ${HOST_OLLAMA_MODELS_DIR}:/root/.ollama/models
+      - ./workspace:${WS_DIR}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [ "gpu" ]
+    depends_on:
+      - proxy
+    networks:
+      - opendevin-net
+
+  proxy:
+    build:
+      dockerfile: ./docker/mitmproxy/Dockerfile
+      args:
+        version: ${MITMPROXY_VERSION:?}
+        proxy_wheel: mitmproxy-${MITMPROXY_VERSION:?}-py3-none-any.whl
+        mitmproxy_dir: ${MITMPROXY_DIR:?}
+        uid: 1000
+        gid: 1000
+    container_name: mitmproxy
+    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://${LITELLM_PORT}:11434@44444 --verbose --anticache --anticomp"
+    networks:
+      - opendevin-net
+    volumes:
+      - ./.mitmproxy:${MITMPROXY_DIR:?}
+    tty: true
+    stdin_open: true
+    ports:
+      - "0.0.0.0:8081:8081"
+
+
+networks:
+  opendevin-net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.111.0/24
+

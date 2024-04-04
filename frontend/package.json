@@ -23,6 +23,7 @@
     "@xterm/xterm": "^5.4.0",
     "eslint-config-airbnb-typescript": "^18.0.0",
     "framer-motion": "^11.0.24",
+    "monaco-editor": "^0.47.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.1.0",
@@ -34,7 +35,7 @@
     "xterm-addon-fit": "^0.8.0"
   },
   "scripts": {
-    "start": "vite",
+    "start": "vite --host 0.0.0.0 --port 4173",
     "build": "tsc && vite build",
     "test": "jest",
     "preview": "vite preview",
