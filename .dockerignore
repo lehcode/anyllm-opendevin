@@ -1,0 +1,17 @@
+.gitattributes
+.git
+.github
+.idea
+.gitignore
+.ollama
+LICENSE
+README.md
+**/docs
+**/evaluation
+**/workspace
+**/agenthub
+**/dev_config
+**/*/Makefile
+**/*/Pip*
+**/*/dist
+**/*/node_modules
