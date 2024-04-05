@@ -1,33 +1,31 @@
 FROM litellm/openai-proxy
 
-#ARG ws_dir
+ARG conda_dir
 ARG venv_dir
-ARG apt_proxy
+ARG venv_name
 ARG debug
 
-ENV PATH=${PATH}:${venv_dir}/bin
-ENV LITELLM_PORT=${litellm_port}
+ENV PATH=${PATH}:/root/.local/bin:${conda_dir}/bin
 ENV VENV_DIR=${venv_dir}
+ENV LITELLM_PORT=${litellm_port}
 ENV DEBUG=${debug}
 
 RUN --mount=type=cache,target=/var/cache/apt \
-    if [ ! -z "${debug}" ]; then set -eux; fi && \
-    apt update && apt -qy upgrade && \
-    apt install -y ca-certificates python3 python3-venv python3-pip curl git && \
-    python3 -m venv --upgrade-deps ${venv_dir} && \
-    python3 -m pip install openai==0.28.1
+    if [ ! -z "${debug}" ]; then set -eux; else apt update && apt -qy upgrade; fi && \
+    apt install -y curl wget git && \
+    mkdir -p /tmp/miniconda3 && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -u -p ${conda_dir}
 
-ENV PATH=${PATH}:/root/.local/bin
-
-RUN if [ ! -z "${debug}" ]; then set -eux; fi && \
-    curl -sSL https://install.python-poetry.org | python3 -
+SHELL ["${conda_dir}/bin/conda", "init", "bash"]
+SHELL ["${conda_dir}/bin/conda", "run", "pip", "install", "openai==0.28.1"]
 
 WORKDIR /usr/local/src
-
+SHELL ["/bin/bash", "-c"]
 RUN if [ ! -z "${debug}" ]; then set -eux; fi && \
-    git clone https://github.com/cpacker/MemGPT.git ./MemGPT && \
+    curl -sSL https://install.python-poetry.org | python3 && \
+    git clone https://github.com/cpacker/MemGPT.git MemGPT && \
     cd ./MemGPT && \
-    . ${venv_dir}/bin/activate && \
     poetry install -E local
 
-COPY ./docker/backends/entrypoint.sh /
+COPY docker/backends/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
