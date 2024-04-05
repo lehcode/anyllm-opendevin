@@ -1,22 +1,51 @@
 version: "3.8"
 services:
+  # UI service
+  devin-ui:
+    container_name: devin-ui
+    build:
+      dockerfile: docker/devin/ui/Dockerfile
+      args:
+        ui_dir: ${UI_DIR:?}
+        node_version: ${NODE_VERSION:?}
+        node_env: ${NODE_ENV:-production}
+        debug: ${DEBUG:?}
+    env_file: ./.env
+    environment:
+      BACKEND_HOST: 172.28.111.5:3000
+      FRONTEND_PORT: 3001
+    networks:
+      - opendevin-net
+    ports:
+      - "18888:18888"
+      - "3001:3001"
+    depends_on:
+      - devin-app
+    tty: true
+
   # Devin Agent Service
   # Devin-Out-of-The-Box
-  app:
+  devin-app:
     container_name: devin-app
     hostname: app-server
+#    image: lehcode/dotob:latest
     build:
       dockerfile: docker/devin/app/Dockerfile
+      context: .
       args:
         workspace_dir: ${WORKSPACE_DIR:?}
+        venv_name: ${ENV_NAME:?}
+        venv_dir: /usr/local/${ENV_NAME:?}
         app_dir: ${APP_DIR:?}
+        conda_dir: ${CONDA_DIR:?}
         debug: ${DEBUG:-}
-        cuda_version: ${CUDA_VERSION:?}
-        cuda_image_os: ${CUDA_IMAGE_OS:?}
-    env_file:
-      - ./.env
-      - ./docker/devin/app/.env
+    env_file: ./.env
     command: entrypoint.sh
+    environment:
+      LLM_API_KEY:
+      LLM_MODEL: mistral
+#      HTTP_PROXY: http://proxy:44444
+#      HTTPS_PROXY: http://proxy:44444
     depends_on:
       - backends
 #      - proxy
@@ -28,21 +57,10 @@ services:
       - ./requirements.txt:/etc/opendevin/
       - ./Makefile:/etc/opendevin/
       - ./:${APP_DIR:?}/
-      - devin_home_vol:/root
-      - pip_cache:/root/.cache/pip
-      - conda_cache:/root/anaconda/pkgs
-#      - ./docker/devin/app/.condarc:/root/
-      - conda_env:/root/miniconda3/envs/${VENV_NAME}
+      - root_local:/root/.local
     working_dir: ${APP_DIR}
-    tmpfs:
-      - /var/devin:exec,size=1g
-      - /run
-      - /tmp
     ports:
       - "3000:3000"
-      - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
-    tty: true
-    stdin_open: true
     restart: no
     deploy:
       resources:
@@ -52,45 +70,38 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
-  # LightLLM proxy + MemGPT 🏬
+  # LightLLM OpenAI proxy + MemGPT 🏬
   backends:
-    container_name: devin-backends
-    hostname: devin-backends
+    container_name: llm-backends
+    hostname: llm-backends
     build:
       dockerfile: docker/backends/Dockerfile
       args:
+        venv_name: ${ENV_NAME:?}
+        venv_dir: /usr/local/${ENV_NAME:?}
+        conda_dir: ${CONDA_DIR:?}
         litellm_port: ${LITELLM_PORT:?}
         jupyter_port: ${JUPYTER_PORT:?}
-        debug: ${DEBUG:?}
-        cuda_version: ${CUDA_VERSION:?}
-        cuda_image_os: ${CUDA_IMAGE_OS:?}
-        venv_name: ${VENV_NAME:?}
-        memgpt_config_path: ${MEMGPT_CONFIG_PATH:-/root/.memgpt/config}
-    env_file:
-      - .env
-      - docker/backends/.env
-    working_dir: /root
+        debug: ${DEBUG:-}
+#    environment:
+#      HTTP_PROXY: http://proxy:44444
+#      HTTPS_PROXY: http://proxy:44444
+#    entrypoint: "/entrypoint.sh"
+    env_file: .env
+    platform: linux/amd64
+    ports:
+      - "${LITELLM_PORT}:${LITELLM_PORT}"
+      - "${JUPYTER_PORT}:${JUPYTER_PORT}"
+    tty: true
     volumes:
-      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-      - pip_cache:/root/.cache/pip
-      - conda_cache:/root/anaconda/pkgs
-      - conda_env:/root/miniconda3/envs/${VENV_NAME:?}
-#      - ./docker/backends/.condarc:/root/
-      - ./docker/backends/memgpt_config:/root/.memgpt/config
-      - ./docker/env_debug.sh:/usr/bin/env_debug
-    #      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
-    tmpfs:
-      - /run
-      - /tmp
+      - ./docker/backends/litellm_config.yaml:/etc/litellm_config.yaml
+#      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
     depends_on:
-      - ollama
-      - litellm
 #      - proxy
+      - ollama
     networks:
       - opendevin-net
-    tty: true
-    stdin_open: true
-    entrypoint: /opt/nvidia/nvidia_entrypoint.sh
+    entrypoint: /usr/local/bin/docker-entrypoint.sh
     healthcheck:
       test: ["CMD", "litellm", "--health"]
       interval: 1m
@@ -105,69 +116,20 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
-  litellm:
-    image: ghcr.io/berriai/litellm:main-latest
-    container_name: litellm-backend
-    command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
-    environment:
-#      LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:?}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_CONTAINER_PORT}/${POSTGRES_DB}
-    ports:
-      - "${LITELLM_PORT}:${LITELLM_PORT}"
-    volumes:
-      - ./docker/litellm/config.yaml:/etc/config.yaml
-      - pip_cache:/root/.cache/pip
-    depends_on:
-      - redis
-      - postgres
-      - ollama
-    networks:
-      - opendevin-net
-
-  redis:
-    image: redis/redis-stack:latest
-    container_name: redis-stack-server
-    env_file:
-      - .env
-      - docker/redis/redis.env
-    ports:
-      - "${REDIS_SERVER_HOST_PORT}:6379"
-      - "${REDIS_INSIGHT_HOST_PORT}:8001"
-    volumes:
-      - redis_data:${REDIS_DATA:-/data}
-    networks:
-      - opendevin-net
-
-  postgres:
-    image: postgres:latest
-    container_name: db-postgres
-    env_file:
-      - .env
-      - docker/postgres/postgres.env
-    volumes:
-      - posgtres_data:${POSTGRES_DATA:-/var/lib/postgres}
-    ports:
-      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
-    tmpfs:
-      - /var/run:size=1m
-    networks:
-      - opendevin-net
-
   # Ollama service
   ollama:
     image: ollama/ollama
-    container_name: ollama-service
-    hostname: ollama
-    platform: linux/amd64
-    env_file:
-      - .env
-      - docker/ollama/ollama.env
-    tty: false
-    ports:
-      - "22434:11434"
+    container_name: ollama-server
+    hostname: ollama-server
+    environment:
+      OLLAMA_MODELS: ${HOST_OLLAMA_MODELS_DIR:?}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:?}
+      OLLAMA_HOST: ${OLLAMA_BIND_HOST:?}
+      OLLAMA_ORIGINS: ${OLLAMA_ORIGINS}
+    env_file: ./.env
+    tty: true
     volumes:
-      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-      - pip_cache:/root/.cache/pip
+      - ${HOST_OLLAMA_MODELS_DIR}:/root/.ollama/models
     deploy:
       resources:
         reservations:
@@ -213,30 +175,6 @@ services:
 #      - ollama
 
 
-  # UI service
-  ui:
-    container_name: devin-ui
-    build:
-      dockerfile: docker/devin/ui/Dockerfile
-      args:
-        ui_dir: ${UI_DIR:-/var/www/od_ui}
-        node_version: ${NODE_VERSION:?}
-        node_env: ${NODE_ENV:-production}
-        debug: ${DEBUG:?}
-    env_file: docker/ui/.env
-    environment:
-      BACKEND_HOST: 172.28.111.5:3000
-      FRONTEND_PORT: 3001
-    networks:
-      - opendevin-net
-    ports:
-      - "18888:18888"
-      - "3001:3001"
-    depends_on:
-      - app
-    tty: true
-    working_dir: ${UI_DIR:-/var/www/od_ui}
-
 networks:
   opendevin-net:
     ipam:
@@ -245,6 +183,8 @@ networks:
         - subnet: 172.28.0.0/16
           gateway: 172.28.111.1
 
+volumes:
+  root_local:
 volumes:
   devin_home_vol:
   posgtres_data:
