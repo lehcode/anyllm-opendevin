@@ -1,27 +1,66 @@
 version: "3.8"
 services:
-  devin:
-    container_name: opendevin
+  # UI service
+  devin-ui:
+    container_name: devin-ui
     build:
-      dockerfile: ./docker/devin/Dockerfile
+      dockerfile: docker/devin/ui/Dockerfile
       args:
-        ws_dir: ${WS_DIR:?}
-        venv_dir: ${VENV_DIR:?}
-        conda_dir: ${CONDA_DIR:?}
-        debug: ${DEBUG:-}
+        ui_dir: ${UI_DIR:?}
         node_version: ${NODE_VERSION:?}
+        node_env: ${NODE_ENV:-production}
+        debug: ${DEBUG:?}
     env_file: ./.env
-    depends_on:
-      - backends
+    environment:
+      BACKEND_HOST: 172.28.111.5:3000
+      FRONTEND_PORT: 3001
     networks:
       - opendevin-net
-    volumes:
-      - ./workspace:${WS_DIR:?}
-    command: ["npm", "start"]
     ports:
-      - "0.0.0.0:4173:4173"
-      - "0.0.0.0:3000:3000"
-      - "0.0.0.0:3001:3001"
+      - "18888:18888"
+      - "3001:3001"
+    depends_on:
+      - devin-app
+    tty: true
+
+  # Devin Agent Service
+  # Devin-Out-of-The-Box
+  devin-app:
+    container_name: devin-app
+    hostname: app-server
+#    image: lehcode/dotob:latest
+    build:
+      dockerfile: docker/devin/app/Dockerfile
+      context: .
+      args:
+        workspace_dir: ${WORKSPACE_DIR:?}
+        venv_name: ${ENV_NAME:?}
+        venv_dir: /usr/local/${ENV_NAME:?}
+        app_dir: ${APP_DIR:?}
+        conda_dir: ${CONDA_DIR:?}
+        debug: ${DEBUG:-}
+    env_file: ./.env
+    command: entrypoint.sh
+    environment:
+      LLM_API_KEY:
+      LLM_MODEL: mistral
+#      HTTP_PROXY: http://proxy:44444
+#      HTTPS_PROXY: http://proxy:44444
+    depends_on:
+      - backends
+#      - proxy
+    networks:
+      opendevin-net:
+        ipv4_address: 172.28.111.5
+    volumes:
+      - ./workspace:${WORKSPACE_DIR:?}
+      - ./requirements.txt:/etc/opendevin/
+      - ./Makefile:/etc/opendevin/
+      - ./:${APP_DIR:?}/
+      - root_local:/root/.local
+    working_dir: ${APP_DIR}
+    ports:
+      - "3000:3000"
     restart: no
     deploy:
       resources:
@@ -31,21 +70,24 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
+  # LightLLM OpenAI proxy + MemGPT 🏬
   backends:
     container_name: llm-backends
     hostname: llm-backends
     build:
       dockerfile: docker/backends/Dockerfile
       args:
-        venv_dir: ${VENV_DIR:?}
+        venv_name: ${ENV_NAME:?}
+        venv_dir: /usr/local/${ENV_NAME:?}
+        conda_dir: ${CONDA_DIR:?}
         litellm_port: ${LITELLM_PORT:?}
         jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-    environment:
-      HTTP_PROXY:
-      HTTPS_PROXY:
-    entrypoint: "/entrypoint.sh"
-    env_file: ./.env
+#    environment:
+#      HTTP_PROXY: http://proxy:44444
+#      HTTPS_PROXY: http://proxy:44444
+#    entrypoint: "/entrypoint.sh"
+    env_file: .env
     platform: linux/amd64
     ports:
       - "${LITELLM_PORT}:${LITELLM_PORT}"
@@ -53,12 +95,13 @@ services:
     tty: true
     volumes:
       - ./docker/backends/litellm_config.yaml:/etc/litellm_config.yaml
-      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
+#      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
     depends_on:
-      - proxy
+#      - proxy
       - ollama
     networks:
       - opendevin-net
+    entrypoint: /usr/local/bin/docker-entrypoint.sh
     healthcheck:
       test: ["CMD", "litellm", "--health"]
       interval: 1m
@@ -73,10 +116,11 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
+  # Ollama service
   ollama:
     image: ollama/ollama
-    container_name: ollama
-    hostname: ollama
+    container_name: ollama-server
+    hostname: ollama-server
     environment:
       OLLAMA_MODELS: ${HOST_OLLAMA_MODELS_DIR:?}
       OLLAMA_MODEL: ${OLLAMA_MODEL:?}
@@ -86,7 +130,6 @@ services:
     tty: true
     volumes:
       - ${HOST_OLLAMA_MODELS_DIR}:/root/.ollama/models
-      - ./workspace:${WS_DIR}
     deploy:
       resources:
         reservations:
@@ -94,30 +137,42 @@ services:
             - driver: "nvidia"
               count: 1
               capabilities: [ "gpu" ]
-    depends_on:
-      - proxy
     networks:
       - opendevin-net
 
-  proxy:
-    build:
-      dockerfile: ./docker/mitmproxy/Dockerfile
-      args:
-        version: ${MITMPROXY_VERSION:?}
-        proxy_wheel: mitmproxy-${MITMPROXY_VERSION:?}-py3-none-any.whl
-        mitmproxy_dir: ${MITMPROXY_DIR:?}
-        uid: 1000
-        gid: 1000
-    container_name: mitmproxy
-    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://${LITELLM_PORT}:11434@44444 --verbose --anticache --anticomp"
-    networks:
-      - opendevin-net
-    volumes:
-      - ./.mitmproxy:${MITMPROXY_DIR:?}
-    tty: true
-    stdin_open: true
-    ports:
-      - "0.0.0.0:8081:8081"
+#  rev-nginx:
+#    image: nginx:latest
+#    volumes:
+#      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+##    ports:
+##      - "3000:3000"
+#    networks:
+#      - opendevin-net
+#    depends_on:
+#      - devin-ui
+#      - devin-app
+
+#  proxy:
+#    build:
+#      dockerfile: ./docker/mitmproxy/Dockerfile
+#      args:
+#        version: ${MITMPROXY_VERSION:?}
+#        proxy_wheel: mitmproxy-${MITMPROXY_VERSION:?}-py3-none-any.whl
+#        mitmproxy_dir: ${MITMPROXY_DIR:?}
+#        uid: 1000
+#        gid: 1000
+#    container_name: mitmproxy
+#    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://ollama:11434@44444 --verbose --anticache --anticomp"
+#    networks:
+#      - opendevin-net
+#    volumes:
+#      - ./.mitmproxy:${MITMPROXY_DIR:?}
+#    tty: true
+#    stdin_open: true
+#    ports:
+#      - "0.0.0.0:8081:8081"
+#    depends_on:
+#      - ollama
 
 
 networks:
@@ -125,5 +180,8 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.28.111.0/24
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.111.1
 
+volumes:
+  root_local:
