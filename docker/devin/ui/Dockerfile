@@ -7,7 +7,10 @@ ARG node_env
 
 ENV NODE_ENV=${node_env}
 
-WORKDIR ${ui_dir}
+RUN --mount=type=cache,target=${HOME}/.npm \
+    if [ ! -z "${debug}" ]; then set -eux; else apk update && apk upgrade; fi && \
+    apk add git && \
+    npm install -g npm pnpm
 
 COPY frontend/dist .
 COPY frontend/src .
@@ -16,11 +19,7 @@ COPY frontend/tsconfig.json .
 COPY frontend/*.config.js .
 COPY frontend/vite*.ts .
 
-RUN --mount=type=cache,target=${HOME}/.npm \
-    if [ ! -z "${debug}" ]; then set -eux; else apk update && apk upgrade; fi && \
-    apk add git && \
-    npm install -g npm pnpm && \
-    pnpm install && \
+RUN pnpm install && \
     pnpm run build
 
 CMD ["pnpm", "run", "preview"]
