@@ -1,4 +1,7 @@
 # This is a template. Run `cp config.toml.template config.toml` to use it.
 
-LLM_API_KEY="<YOUR OPENAI API KEY>"
-WORKSPACE_DIR="./workspace"
+LLM_MODEL="<LLM_MODEL>"
+LLM_API_KEY="<OPENAI_API_KEY>"
+LLM_EMBEDDING_MODEL="local"
+LLM_BASE_URL="http://0.0.0.0:<PORT_NUMBER>"
+WORKSPACE_DIR="<WORKSPACE_DIR>"

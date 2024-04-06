@@ -38,7 +38,7 @@
     "start": "vite",
     "build": "tsc && vite build",
     "test": "jest",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0 --",
     "make-i18n": "node scripts/make-i18n-translations.cjs",
     "prelint": "npm run make-i18n",
     "lint": "eslint src/**/*.ts* && prettier --check src/**/*.ts*",

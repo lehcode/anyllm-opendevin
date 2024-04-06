@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+**/*/.env
 .venv
 env/
 venv/
@@ -206,3 +206,4 @@ config.toml
 .ollama/models
 .ollama/id_*
 /frontend/.husky/
+/**/*/.env

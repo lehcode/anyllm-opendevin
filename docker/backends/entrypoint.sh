@@ -2,21 +2,20 @@
 
 [[ ! -z "${DEBUG}" ]]; set -eux
 
-update-ca-certificates
-
-# curl http://ollama:11434/api/tags
-# curl -X POST http://ollama:11434/api/pull -d '{"name": "'${OLLAMA_MODEL}'"}'
-# curl http://ollama:11434/api/generate -d '{"model": "'${OLLAMA_MODEL}'"}'
-
-# source ${VENV_DIR}/bin/activate
-
-[[ ! -z "${DEBUG}" ]]; litellm --help
-litellm --file /etc/litellm_config.yaml --port "${LITELLM_PORT}"
-
+# curl -X POST http://ollama:11434/api/pull -d '{"name": "ollama/mistral:7b"}'
 # curl http://ollama:11434/api/tags
 
-# memgpt run -y --agent devin_memory \
-#     --model "llama2" \
+[[ -f /root/.memgpt/config ]] || conda run -n "${VENV_NAME}" memgpt quickstart --backend memgpt
+
+# to preload a model and leave it in memory
+curl http://ollama:11434/api/generate -d '{"model": "llama2", "keep_alive": -1}'
+# To unload the model and free up memory
+# curl http://ollama:11434/api/generate -d '{"model": "llama2", "keep_alive": -1}'
+
+# conda run -n "${VENV_NAME}" memgpt run \
+#     --agent memgpt_agent \
+#     --model ollama/mistral:7b \
 #     --model-endpoint-type ollama \
 #     --model-endpoint http://ollama:11434 \
+#     --model-wrapper airoboros-l2-70b-2.1 \
 #     --debug
