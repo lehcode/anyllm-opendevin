@@ -1,0 +1,37 @@
+[defaults]
+preset = memgpt_docs
+persona = memgpt_doc
+human = basic
+
+[model]
+model = memgpt
+model_endpoint = https://inference.memgpt.ai
+model_endpoint_type = openai
+model_wrapper = chatml
+context_window = 16384
+
+[embedding]
+embedding_endpoint_type = hugging-face
+embedding_endpoint = https://embeddings.memgpt.ai
+embedding_model = BAAI/bge-large-en-v1.5
+embedding_dim = 1024
+embedding_chunk_size = 300
+
+[archival_storage]
+type = chroma
+path = /var/lib/memgpt/chroma
+
+[recall_storage]
+type = sqlite
+path = /var/lib/memgpt
+
+[metadata_storage]
+type = sqlite
+path = /var/lib/memgpt
+
+[version]
+memgpt_version = 0.3.8
+
+[client]
+anon_clientid = 000000000000000000003cecef9ce1b0
+
