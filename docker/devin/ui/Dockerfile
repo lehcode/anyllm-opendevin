@@ -7,6 +7,8 @@ ARG node_env
 
 ENV NODE_ENV=${node_env}
 
+WORKDIR $ui_dir
+
 RUN --mount=type=cache,target=${HOME}/.npm \
     if [ ! -z "${debug}" ]; then set -eux; else apk update && apk upgrade; fi && \
     apk add git && \

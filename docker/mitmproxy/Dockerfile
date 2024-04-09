@@ -22,7 +22,8 @@ ENV MITMPROXY_DIR=${mitmproxy_dir}
 
 SHELL ["/bin/sh", "-c"]
 
-RUN groupadd -g ${gid} mitmproxy && \
+RUN --mount=type=cache,target=/var/cache/apt \
+    groupadd -g ${gid} mitmproxy && \
     useradd -m -u ${uid} -g ${gid} mitmproxy && \
     apt update && apt -qy upgrade && \
     apt install -y --no-install-recommends gosu nano && \

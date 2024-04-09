@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
 
-[[ ! -z "${DEBUG}" ]]; set -eux
-[[ -f /usr/bin/env_debug ]] && chmod a+x /usr/bin/env_debug
+if [ -n "${DEBUG}" ]; then
+    set -eu
+    echo "Debugging is enabled"
+    echo "Container hostname: $(hostname)"
+    echo "Container IP: $(hostname -i)"
+    echo "Environment variables:"
+    env
+    echo "Python environment and executables status:"
+    if [ -f "${BIN_DIR}/env_debug" ]; then /bin/sh < "${BIN_DIR}/env_debug"; fi
+    echo "Nvidia CUDA properties:"
+    nvidia-smi
+    echo "Force-loading the default Ollama model:"
+fi
 
-[[ -z ${DEBUG} ]] || pwd
-[[ -z ${DEBUG} ]] || env
-[[ -z ${DEBUG} ]] || python3 --version
-[[ -z ${DEBUG} ]] || which python3
+# Process named arguments
+while getopts ":-m:e:" opt; do
+  case ${opt} in
+    -m ) chat_model="$OPTARG";;
+    -e ) embeddings_model="$OPTARG";;
+    \? ) echo "Invalid option: $OPTARG" 1>&2; exit 1;;
+    : ) echo "Invalid option: $OPTARG requires an argument" 1>&2; exit 1;;
+  esac
+done
+shift $((OPTIND -1))
 
-# pipenv --python /usr/local/miniconda3/bin/python3
+python3 "/usr/local/bin/configure_devin" "$chat_model" "$embeddings_model"
 
-# read -p "Please enter your desired LLM model name: " llm_model
+python3 "./opendevin/sandbox/sandbox.py" -d "${WORKSPACE_DIR}"
 
-# conda run -n "${VENV_NAME}" pip install chromadb
-
-# conda install -y -n ${VENV_NAME} uvicorn
-
-conda run -n "${VENV_NAME}"  uvicorn opendevin.server.listen:app --reload --port 3000 --host 172.28.111.5
-
-#python3 "${APP_DIR}/opendevin/sandbox/sandbox.py" -d "${WORKSPACE_DIR}"
+python3 -m uvicorn opendevin.server.listen:app --reload --port 3000 --host 172.28.111.5
