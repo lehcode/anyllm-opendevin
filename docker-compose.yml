@@ -208,10 +208,11 @@ services:
 #    depends_on:
 #      - app
     tty: true
-    command: ["vite", "preview", "--host", "0.0.0.0"]
-    working_dir: ${UI_DIR:-/var/www/od_ui}
-    volumes:
-      - ./frontend/dist/:/src/ui/frontend/dist
+    command: "vite --host 0.0.0.0 --port ${UI_HTTP_PORT:?}"
+    working_dir: ${UI_DIR:?}
+#    volumes:
+#      - ./frontend/dist/:${UI_DIR:?}/
+#      - ./frontend/src:${UI_DIR:?}/
 
 networks:
   opendevin-net:
