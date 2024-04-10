@@ -1,5 +1,9 @@
 # Docker Support
 
+- NVidia CUDA 12.4.0 Docker image with GPU support
+- Python 3.11.8
+- Miniconda3 environment
+
 ## Dockerized OpenDevin
 
 Use following sequence to have it up and running.
