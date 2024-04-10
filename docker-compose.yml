@@ -11,12 +11,14 @@ services:
         litellm_port: ${LITELLM_PORT:?}
         jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-        conda_dir: ${CONDA_PREFIX}
+        conda_dir: ${APP_DIR:?}/.conda
         nvidia_utils_driver: 550
+        app_dir: /opt/opendevin
+        venv_name: ${VENV_NAME:?}
     env_file:
       - ./.env
       - docker/devin/app/.env
-    command: /docker-entrypoint.sh
+    command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
       - mitm
@@ -26,18 +28,18 @@ services:
       opendevin-net:
         ipv4_address: 172.28.0.222
     volumes:
-      - ./workspace:${WORKSPACE_DIR:?}
-# Uncomment mounts if need for development
-# By default files are simply copied inside container on build
-#      - ./requirements.txt:${APP_DIR:?}/
-#      - ./Makefile:${APP_DIR:?}/
-#      - ./:${APP_DIR:?}/
-      - app_root_dir_vol:/root
+      - root_dir_vol:/root
       - pip_cache_vol:/root/.cache/pip:tmpfs=4G
-      - conda_cache_vol:${CONDA_PREFIX:?}/conda/.pkgs:tmpfs=4G
+      - conda_vol:${CONDA_PREFIX:?}:tmpfs=4G
+      - od_vol:${APP_DIR:?}
+      - ./requirements.txt:${APP_DIR:?}/requirements.txt
+      - ./environment.yml:${APP_DIR:?}/environment.yml
+      - ./workspace:${APP_DIR:?}/workspace
       - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
-      - conda_env_vol:${CONDA_PREFIX:?}/envs/${VENV_NAME:?}
-      - ./docker/env_debug.sh:/root/devin/scripts/env_debug
+      # Uncomment mounts if need for development
+      # By default files are simply copied inside container on build
+      # - ./Makefile:${APP_DIR:?}/
+      # - ./:${APP_DIR:?}/
     working_dir: ${APP_DIR}
     tmpfs:
       - /run
@@ -58,55 +60,6 @@ services:
               count: 1
               capabilities: [ "gpu" ]
 
-  # MemGPT 🏬
-#  memgpt:
-#    container_name: devin-memgpt
-#    hostname: devin-memgpt
-#    build:
-#      dockerfile: docker/memgpt/Dockerfile
-#      args:
-##        litellm_port: ${LITELLM_PORT:?}
-##        jupyter_port: ${JUPYTER_PORT:?}
-#        debug: ${DEBUG:?}
-#        timezone: ${TIMEZONE:?}
-#        litellm_port: ${LITELLM_PORT:?}
-#        memgpt_config_file: /etc/.memgpt/memgpt.conf
-#        conda_prefix: ${CONDA_PREFIX:?}
-#        conda_pkgs_dirs: ${CONDA_PREFIX:?}/.pkgs
-#    env_file:
-#      - .env
-#      - docker/memgpt/.env
-#    environment:
-#      PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt_memory
-#    working_dir: /root
-#    volumes:
-#      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-#      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
-#      - conda_cache_vol:/root/conda/.pkgs:tmpfs=4G
-#      - conda_env_vol:/root/conda/envs/${VENV_NAME:?}:tmpfs=4G
-#      - ./docker/memgpt/.condarc:/root/.condarc
-#      - ./docker/memgpt/config.conf:/root/.memgpt/memgpt.conf
-#    #      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
-#    tmpfs:
-#      - /tmp
-#      - /var/tmp
-#    depends_on:
-#      - ollama
-#      - litellm
-###      - proxy
-#    networks:
-#      - opendevin-net
-#    tty: true
-#    stdin_open: true
-#    entrypoint: /usr/local/bin/launcher
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - driver: "nvidia"
-#              count: 1
-#              capabilities: [ "gpu" ]
-
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: litellm_backend
@@ -117,8 +70,8 @@ services:
     ports:
       - "${LITELLM_PORT}:4000"
     volumes:
+      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
       - ./docker/litellm/config.yaml:/etc/config.yaml
-      - pip_cache_vol:/root/.cache/pip
       - ./docker/env_debug.sh:/usr/local/bin/env_debug
     depends_on:
       - redis
@@ -262,9 +215,9 @@ networks:
           gateway: 172.28.111.1
 
 volumes:
-  app_root_dir_vol:
+  root_dir_vol:
   posgtres_data:
   redis_data:
   pip_cache_vol:
-  conda_cache_vol:
-  conda_env_vol:
+  conda_vol:
+  od_vol:

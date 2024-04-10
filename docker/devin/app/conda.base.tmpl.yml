@@ -44,6 +44,7 @@ dependencies:
   - setuptools=69.2.0
   - six=1.16.0
   - tk=8.6.13
+  - transformers=4.39.2
   - tzdata=2024a
   - urllib3=2.2.1
   - websocket-client=1.7.0
