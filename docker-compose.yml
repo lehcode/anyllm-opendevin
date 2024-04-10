@@ -4,7 +4,8 @@ services:
   app:
     container_name: devin-app
     hostname: oppendevin
-    image: oppendevin-cuda_11.3.1-conda:latest
+    image: oppendevin-cuda_${CUDA_VERSION:?}-conda:latest
+    pull_policy: always
     build:
       dockerfile: docker/devin/app/Dockerfile
       args:
@@ -26,7 +27,7 @@ services:
 #      - redis
     networks:
       opendevin-net:
-        ipv4_address: ${APP_WS_HOST:?}
+        ipv4_address: ${APP_HOST:?}
     volumes:
       - root_dir_vol:/root
       - pip_cache_vol:/root/.cache/pip:tmpfs=4G
@@ -52,7 +53,7 @@ services:
       - /tmp
       - /var/run
     ports:
-      - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
+      - "${APP_PORT}:${APP_PORT}"
       - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
     tty: true
     stdin_open: true
@@ -67,6 +68,7 @@ services:
 
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
+    pull_policy: always
     container_name: litellm_backend
     command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
     environment:
@@ -98,6 +100,7 @@ services:
 
   redis:
     image: redis/redis-stack:latest
+    pull_policy: always
     container_name: redis-stack-server
     env_file:
       - .env
@@ -112,6 +115,7 @@ services:
 
   postgres:
     image: postgres:latest
+    pull_policy: always
     container_name: db-postgres
     env_file:
       - .env
@@ -129,6 +133,7 @@ services:
   # Ollama service
   ollama:
     image: ollama/ollama
+    pull_policy: always
     container_name: ollama-service
     hostname: ollama
     platform: linux/amd64
@@ -158,6 +163,8 @@ services:
       - /var/tmp
 
   mitm:
+    image: oppendevin-mitmproxy_${MITMPROXY_VERSION:?}
+    pull_policy: always
     build:
       dockerfile: ./docker/mitmproxy/Dockerfile
       args:
@@ -185,7 +192,8 @@ services:
   # UI service
   ui:
     container_name: devin-ui
-    image: opendevin_ui-node_${NODE_VERSION:?}-npm_${NPM_VERSION}-pnpm-reactjs
+    image: oppendevin_ui-node_${NODE_VERSION:?}-npm_${NPM_VERSION}-pnpm-reactjs
+    pull_policy: always
     build:
       dockerfile: docker/devin/ui/Dockerfile
       args:
@@ -198,13 +206,13 @@ services:
       - ./.env
       - docker/devin/ui/.env
     environment:
-      BACKEND_HOST: ${APP_WS_HOST:?}:${APP_HTTP_PORT:?}
+      BACKEND_HOST: ${APP_HOST:?}:${APP_PORT:?}
       FRONTEND_PORT: ${UI_HTTP_PORT:?}
     networks:
       - opendevin-net
     ports:
       - "${UI_HTTP_PORT:?}:${UI_HTTP_PORT:?}"
-      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
+#      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
 #    depends_on:
 #      - app
     tty: true
