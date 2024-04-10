@@ -9,10 +9,10 @@ ENV NODE_ENV=${node_env}
 
 WORKDIR /etc/nginx
 
-RUN if [ ! -z "$debug" ]; set -eux && \
+RUN if [ -n "$debug" ]; then set -eux; fi && \
     apk update && \
-    if [ ! -z "$debug" ]; apk upgrade && \
-    apk add git && \
+    if [ -z "$debug" ]; then apk upgrade; fi && \
+    apk add git openssl && \
     npm install -g npm pnpm && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout privkey.pem -out fullchain.pem
 

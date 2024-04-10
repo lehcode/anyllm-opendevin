@@ -11,8 +11,10 @@ Use following sequence to have it up and running.
 ```shell
 $ git clone https://github.com/OpenDevin/OpenDevin.git .
 $ cd OpenDevin
-$ docker compose up
+$ docker compose up --build
 ```
+
+Also `docker compose up --build app` will start application container with dependencies, as well as `docker compose up --build ui` will start the UI server.
 
 ### Components
 
