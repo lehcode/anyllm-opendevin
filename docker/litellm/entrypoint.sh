@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+﻿#!/bin/bash
 
-[[ ! -z "${DEBUG}" ]]; set -eux
+if [ -n "${DEBUG}" ]; then set -eux; else set -eu; fi
 
-[[ ! -z "${DEBUG}" ]]; litellm --help
-litellm --file /etc/litellm_config.yaml --port "${LITELLM_PORT}"
+if [ -n "${DEBUG}" ]; then litellm --help; fi
+litellm --file /etc/litellm/config.yaml --port "${LITELLM_PORT}"

@@ -1,4 +1,4 @@
-ARG node_version
+﻿ARG node_version
 FROM node:${node_version}-alpine as build-front
 
 ARG ui_dir
@@ -9,7 +9,7 @@ ENV NODE_ENV=${node_env}
 
 WORKDIR $ui_dir
 
-RUN --mount=type=cache,target=${HOME}/.npm \
+RUN --mount=type=cache,target=/root/.npm \
     if [ ! -z "${debug}" ]; then set -eux; else apk update && apk upgrade; fi && \
     apk add git && \
     npm install -g npm pnpm
