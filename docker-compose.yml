@@ -3,47 +3,49 @@ services:
   # Devin Out-of-The-Box Agent Service
   app:
     container_name: devin-app
-    hostname: app-server
+    hostname: oppendevin
     image: oppendevin-cuda_11.3.1-conda:latest
     build:
       dockerfile: docker/devin/app/Dockerfile
       args:
-        workspace_dir: ${WORKSPACE_DIR:?}
-        app_dir: ${APP_DIR:?}
+        litellm_port: ${LITELLM_PORT:?}
+        jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-        venv_name: od_env
-        timezone: ${TIMEZONE:?}
+        conda_dir: ${CONDA_PREFIX}
+        nvidia_utils_driver: 550
     env_file:
       - ./.env
-      - ./docker/devin/app/.env
-    environment:
-      CONDA_ROOT: ${CONDA_DIR:?}
-    command: /entrypoint.sh
-#    depends_on:
-#      - memgpt
-#      - proxy
+      - docker/devin/app/.env
+    command: /docker-entrypoint.sh
+    depends_on:
+      - litellm
+      - mitm
+      - postgres
+      - redis
     networks:
       opendevin-net:
-        ipv4_address: 172.28.111.5
+        ipv4_address: 172.28.0.222
     volumes:
       - ./workspace:${WORKSPACE_DIR:?}
-      - ./requirements.txt:${APP_DIR:?}/
-      - ./Makefile:${APP_DIR:?}/
-      - ./:${APP_DIR:?}/
-      - devin_home_vol:/root
-      - pip_cache_vol:${PIP_CACHE_DIR:?}
-      - conda_cache_vol:${CONDA_CACHE_DIR:?}
-      - ./docker/devin/app/.condarc:${CONDA_DIR}/.condarc
-      - conda_env_vol:/root/miniconda3/envs/${VENV_NAME:?}
-      - ./docker/env_debug.sh:/usr/local/bin/env_debug
+# Uncomment mounts if need for development
+# By default files are simply copied inside container on build
+#      - ./requirements.txt:${APP_DIR:?}/
+#      - ./Makefile:${APP_DIR:?}/
+#      - ./:${APP_DIR:?}/
+      - app_root_dir_vol:/root
+      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
+      - conda_cache_vol:${CONDA_PREFIX:?}/conda/.pkgs:tmpfs=4G
+      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
+      - conda_env_vol:${CONDA_PREFIX:?}/envs/${VENV_NAME:?}
+      - ./docker/env_debug.sh:/root/devin/scripts/env_debug
     working_dir: ${APP_DIR}
     tmpfs:
       - /run
       - /tmp
-      - /var/tmp
       - /var/run
     ports:
-      - "3000:3000"
+      - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
+      - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
       - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
     tty: true
     stdin_open: true
@@ -57,71 +59,66 @@ services:
               capabilities: [ "gpu" ]
 
   # MemGPT 🏬
-  memgpt:
-    container_name: devin-memgpt
-    hostname: devin-memgpt
-    image: oppendevin_memgpt-cuda_11.3.1-conda:latest
-    build:
-      dockerfile: docker/memgpt/Dockerfile
-      args:
+#  memgpt:
+#    container_name: devin-memgpt
+#    hostname: devin-memgpt
+#    build:
+#      dockerfile: docker/memgpt/Dockerfile
+#      args:
+##        litellm_port: ${LITELLM_PORT:?}
+##        jupyter_port: ${JUPYTER_PORT:?}
+#        debug: ${DEBUG:?}
+#        timezone: ${TIMEZONE:?}
 #        litellm_port: ${LITELLM_PORT:?}
-#        jupyter_port: ${JUPYTER_PORT:?}
-        debug: ${DEBUG:?}
-        venv_name: ${VENV_NAME:?}
-        memgpt_config: /etc/memgpt/config.json
-        timezone: ${TIMEZONE:?}
-        conda_cache_dir: ${CONDA_CACHE_DIR:?}
-        pip_cache_dir: ${PIP_CACHE_DIR:?}
-        ollama_openai_port: ${LITELLM_PORT:?}
-    env_file:
-      - .env
-      - docker/memgpt/.env
-    environment:
-      CONDA_ROOT: ${CONDA_DIR:?}
-      CONDA_PREFIX: ${CONDA_DIR:?}
-      MEMGPT_CONFIG_PATH: ${MEMGPT_CONFIG_FILE:?}
-      PGVECTOR_TEST_DB_URL: ${PGVECTOR_TEST_DB_URL:?}
-    working_dir: /root
-    volumes:
-      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-      - pip_cache_vol:${PIP_CACHE_DIR:?}
-      - conda_cache_vol:${CONDA_CACHE_DIR}
-      - conda_env_vol:/root/miniconda3/envs/${VENV_NAME:?}
-      - ./docker/memgpt/.condarc:${CONDA_DIR}/.condarc
-      - ./docker/memgpt/memgpt_config:${MEMGPT_CONFIG_FILE:?}
-    #      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
-    tmpfs:
-      - /tmp
-      - /var/tmp
-    depends_on:
-      - ollama
-      - litellm
-##      - proxy
-    networks:
-      - opendevin-net
-    tty: true
-    stdin_open: true
-    entrypoint: /opt/nvidia/nvidia_entrypoint.sh
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: "nvidia"
-              count: 1
-              capabilities: [ "gpu" ]
+#        memgpt_config_file: /etc/.memgpt/memgpt.conf
+#        conda_prefix: ${CONDA_PREFIX:?}
+#        conda_pkgs_dirs: ${CONDA_PREFIX:?}/.pkgs
+#    env_file:
+#      - .env
+#      - docker/memgpt/.env
+#    environment:
+#      PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt_memory
+#    working_dir: /root
+#    volumes:
+#      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
+#      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
+#      - conda_cache_vol:/root/conda/.pkgs:tmpfs=4G
+#      - conda_env_vol:/root/conda/envs/${VENV_NAME:?}:tmpfs=4G
+#      - ./docker/memgpt/.condarc:/root/.condarc
+#      - ./docker/memgpt/config.conf:/root/.memgpt/memgpt.conf
+#    #      - ./.mitmproxy/mitmproxy-ca.pem:/usr/local/share/ca-certificates/mitmproxy-ca.crt
+#    tmpfs:
+#      - /tmp
+#      - /var/tmp
+#    depends_on:
+#      - ollama
+#      - litellm
+###      - proxy
+#    networks:
+#      - opendevin-net
+#    tty: true
+#    stdin_open: true
+#    entrypoint: /usr/local/bin/launcher
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: "nvidia"
+#              count: 1
+#              capabilities: [ "gpu" ]
 
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
-    container_name: litellm-backend
+    container_name: litellm_backend
     command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
     environment:
-#      LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:?}
+      LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:?}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_CONTAINER_PORT}/${POSTGRES_DB}
     ports:
-      - "${LITELLM_PORT}:${LITELLM_PORT}"
+      - "${LITELLM_PORT}:4000"
     volumes:
       - ./docker/litellm/config.yaml:/etc/config.yaml
-      - pip_cache_vol:${PIP_CACHE_DIR:?}
+      - pip_cache_vol:/root/.cache/pip
       - ./docker/env_debug.sh:/usr/local/bin/env_debug
     depends_on:
       - redis
@@ -148,8 +145,8 @@ services:
       - .env
       - docker/redis/redis.env
     ports:
-      - "${HOST_REDIS_SERVER_PORT}:6379"
-      - "${HOST_REDIS_INSIGHT_PORT}:8001"
+      - "0.0.0.0:${REDIS_SERVER_PORT}:6379"
+      - "0.0.0.0:${REDIS_INSIGHT_PORT}:8001"
     volumes:
       - redis_data:${REDIS_DATA:-/data}
     networks:
@@ -185,7 +182,7 @@ services:
       - "22434:11434"
     volumes:
       - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-      - pip_cache_vol:${PIP_CACHE_DIR:?}
+      - pip_cache_vol:/root/.cache/pip
     deploy:
       resources:
         reservations:
@@ -221,10 +218,6 @@ services:
     stdin_open: true
     ports:
       - "0.0.0.0:8081:8081"
-    depends_on:
-      - ollama
-      - memgpt
-      - app
     tmpfs:
       - /run
       - /var/run
@@ -269,7 +262,7 @@ networks:
           gateway: 172.28.111.1
 
 volumes:
-  devin_home_vol:
+  app_root_dir_vol:
   posgtres_data:
   redis_data:
   pip_cache_vol:
