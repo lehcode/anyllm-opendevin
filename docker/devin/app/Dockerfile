@@ -6,8 +6,8 @@ ARG cuda_version
 ARG ubuntu_version
 
 LABEL org.opencontainers.image.description="Devin with Nvidia CUDA v${cuda_version} and Miniconda3"
+LABEL org.opencontainers.image.author="lehcode <53556648+lehcode@users.noreply.github.com>"
 
-ARG timezone=Etc/UTC
 ARG venv_name=conda_env
 ARG app_dir
 ARG debug
@@ -19,7 +19,6 @@ ARG venv_name
 ARG litellm_port=11111
 ARG jupyter_port=37799
 ARG nvidia_utils_driver=550
-
 ENV DEBUG="$debug"
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -31,17 +30,24 @@ RUN --mount=type=cache,target=${apt_cache_dir},sharing=locked \
     apt-get install -qy --no-install-recommends \
       tzdata locales cpanminus curl git gnupg gnupg2 gnupg1 wget \
       nvidia-utils-${nvidia_utils_driver} && \
-    if [ -z "${DEBUG}" ]; then apt-get -qy upgrade; fi && \
+    if [ -z "${DEBUG}" ]; then apt-get -qy upgrade; fi
+
+ARG timezone
+ARG locale
+ENV LANG="$locale"
+ENV TZ="$timezone"
+COPY docker/locales /etc/locale.gen
+
+RUN if [ -n "${DEBUG}" ]; then set -eux; fi && \
     ln -fs "/usr/share/zoneinfo/$timezone" /etc/localtime && \
-    echo "$timezone" > /etc/timezone && cat /etc/timezone && \
-    cat /etc/docker_locales | tee -a /etc/locale.gen && \
+    echo "$TZ" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata locales && \
     apt-get -q update && \
     apt-get -qy upgrade && \
     rm -f /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1 && \
     rm -f /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1 && \
     rm -f /usr/lib/x86_64-linux-gnu/libcuda.so.1 && \
-    if [ -z "$debug" ]; then rm -rf /var/lib/apt/lists/*; fi
+    if [ -z "${DEBUG}" ]; then rm -rf /var/lib/apt/lists/*; fi
 
 COPY docker/devin/app/conda.base.tmpl.yml /tmp/environment.yml
 
@@ -49,7 +55,6 @@ ARG conda_dir
 ENV CONDA_PREFIX=$conda_dir
 
 ENV PATH="${PATH}:/root/.local/bin:${CONDA_PREFIX}/bin"
-ENV TZ="$timezone"
 ENV VENV_NAME="$venv_name"
 
 #RUN echo $PATH && env && exit 1

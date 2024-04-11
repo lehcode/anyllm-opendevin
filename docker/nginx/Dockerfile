@@ -1,6 +1,9 @@
 ARG node_version
 FROM node:${node_version}-alpine as build-front
 
+LABEL org.opencontainers.image.description="NGINX server for proxying"
+LABEL org.opencontainers.image.author="lehcode <53556648+lehcode@users.noreply.github.com>"
+
 ARG ui_dir
 ARG debug
 ARG node_env

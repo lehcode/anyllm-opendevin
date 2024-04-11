@@ -19,6 +19,6 @@ fi
 
 # python3 "/usr/local/bin/configure_devin" "$chat_model" "$embeddings_model"
 #
-python3 -m uvicorn opendevin.server.listen:app --reload --port "${APP_HTTP_PORT}" --host 0.0.0.0
+python3 -m uvicorn opendevin.server.listen:app --reload --port "${APP_PORT}" --host 0.0.0.0
 # python3 "./opendevin/sandbox/sandbox.py" -d "${WORKSPACE_DIR}"
 #

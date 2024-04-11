@@ -16,15 +16,17 @@ services:
         nvidia_utils_driver: 550
         app_dir: /opt/opendevin
         venv_name: ${VENV_NAME:?}
+        locale: ${LANG:?}
+        timezone: ${TZ:?}
     env_file:
       - ./.env
       - docker/devin/app/.env
     command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
-#      - mitm
-#      - postgres
-#      - redis
+      - mitm
+      - postgres
+      - redis
     networks:
       opendevin-net:
         ipv4_address: ${APP_HOST:?}
@@ -207,20 +209,20 @@ services:
       - docker/devin/ui/.env
     environment:
       BACKEND_HOST: ${APP_HOST:?}:${APP_PORT:?}
-      FRONTEND_PORT: ${UI_HTTP_PORT:?}
+      FRONTEND_PORT: ${APP_PORT:?}
     networks:
       - opendevin-net
     ports:
       - "${UI_HTTP_PORT:?}:${UI_HTTP_PORT:?}"
-#      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
-#    depends_on:
-#      - app
+      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
+    depends_on:
+      - app
     tty: true
     command: "vite --host 0.0.0.0 --port ${UI_HTTP_PORT:?}"
     working_dir: ${UI_DIR:?}
-#    volumes:
-#      - ./frontend/dist/:${UI_DIR:?}/
-#      - ./frontend/src:${UI_DIR:?}/
+    volumes:
+      - ./frontend/dist:${UI_DIR:?}/
+      - ./frontend/src:${UI_DIR:?}/
 
 networks:
   opendevin-net:

@@ -3,6 +3,8 @@
 - NVidia CUDA 12.4.0 Docker image with GPU support
 - Python 3.11.8
 - Miniconda3 environment
+- Build cache shared between services
+- Localization at OS level with 152 UTF-8 locales
 
 ## Dockerized OpenDevin
 

@@ -1,8 +1,11 @@
+ARG version
 FROM python:3.11-bullseye as wheelbuilder
+ARG version
 
 LABEL org.opencontainers.image.description="mitmproxy (mitmproxy.org) version specific build"
+LABEL org.opencontainers.image.version="mitmproxy v${version}"
+LABEL org.opencontainers.image.author="lehcode <53556648+lehcode@users.noreply.github.com>"
 
-ARG version
 ARG proxy_wheel
 
 ADD https://downloads.mitmproxy.org/${version}/${proxy_wheel} /wheels/

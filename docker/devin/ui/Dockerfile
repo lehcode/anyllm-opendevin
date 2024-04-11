@@ -39,8 +39,9 @@ FROM node:${node_version}-slim as service
 ARG ui_dir
 ENV UI_DIR=$ui_dir
 
-COPY --from=build-front /src/ui/frontend/dist/ ${UI_DIR}/
 COPY frontend/package.json ${UI_DIR}/
+
+COPY --from=build-front /src/ui/frontend/dist/ ${UI_DIR}/
 COPY --from=build-front /src/ui/frontend/.npmrc ${UI_DIR}/
 COPY --from=build-front /root/.bashrc /root/
 
@@ -53,6 +54,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     npm install -g npm@${npm_version} pnpm && \
     SHELL=bash pnpm setup && \
     . /root/.bashrc && \
+    npm install -g vite && \
     pnpm install
 
 CMD ["pnpm", "run", "preview"]
