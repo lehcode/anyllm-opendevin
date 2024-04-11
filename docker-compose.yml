@@ -16,15 +16,17 @@ services:
         nvidia_utils_driver: 550
         app_dir: /opt/opendevin
         venv_name: ${VENV_NAME:?}
+        locale: ${LANG:?}
+        timezone: ${TZ:?}
     env_file:
       - ./.env
       - docker/devin/app/.env
     command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
-#      - mitm
-#      - postgres
-#      - redis
+      - mitm
+      - postgres
+      - redis
     networks:
       opendevin-net:
         ipv4_address: ${APP_HOST:?}
@@ -65,11 +67,17 @@ services:
             - driver: "nvidia"
               count: 1
               capabilities: [ "gpu" ]
+    healthcheck:
+      test: [ "CMD", "curl", "-L", "http://localhost:${APP_PORT}" ]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
 
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
     pull_policy: always
-    container_name: litellm_backend
+    container_name: litellm
     command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
     environment:
       LITELLM_DEFAULT_MODEL: ${LITELLM_DEFAULT_MODEL:?}
@@ -197,11 +205,11 @@ services:
     build:
       dockerfile: docker/devin/ui/Dockerfile
       args:
-        ui_dir: ${UI_DIR:?}
         node_version: ${NODE_VERSION:?}
         npm_version: ${NPM_VERSION:?}
-        node_env: ${NODE_ENV:-production}
+        node_env: ${NODE_ENV:?}
         debug: ${DEBUG:?}
+        node_options: ${NODE_OPTIONS}
     env_file:
       - ./.env
       - docker/devin/ui/.env
@@ -212,23 +220,18 @@ services:
       - opendevin-net
     ports:
       - "${UI_HTTP_PORT:?}:${UI_HTTP_PORT:?}"
-#      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
-#    depends_on:
-#      - app
-    tty: true
-    command: "vite --host 0.0.0.0 --port ${UI_HTTP_PORT:?}"
-    working_dir: ${UI_DIR:?}
-#    volumes:
-#      - ./frontend/dist/:${UI_DIR:?}/
-#      - ./frontend/src:${UI_DIR:?}/
-
+      - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
+    tty: false
+    entrypoint: "/docker-entrypoint.sh"
+    volumes:
+      - ./frontend:/opt/ui_build
 networks:
   opendevin-net:
     ipam:
       driver: default
       config:
         - subnet: 172.28.0.0/16
-          gateway: 172.28.111.1
+#          gateway: 172.28.111.1
 
 volumes:
   root_dir_vol:
