@@ -2,23 +2,16 @@ ARG cuda_version=12.4.0
 ARG ubuntu_tag=ubuntu20.04
 ARG tag="${cuda_version}-devel-${ubuntu_tag}"
 FROM nvidia/cuda:${tag} as build
-ARG cuda_version
-ARG ubuntu_version
 
 LABEL org.opencontainers.image.description="Devin with Nvidia CUDA v${cuda_version} and Miniconda3"
 LABEL org.opencontainers.image.author="lehcode <53556648+lehcode@users.noreply.github.com>"
 
-ARG venv_name=conda_env
-ARG app_dir
-ARG debug
-ARG workspace_dir
-ARG bin_dir=/usr/local/bin
-ARG pip_cache_dir=/root/.cache/pip
+ARG cuda_version
+ARG ubuntu_version
 ARG apt_cache_dir=/var/cache/apt
-ARG venv_name
-ARG litellm_port=11111
-ARG jupyter_port=37799
 ARG nvidia_utils_driver=550
+ARG debug
+
 ENV DEBUG="$debug"
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -54,6 +47,8 @@ COPY docker/devin/app/conda.base.tmpl.yml /tmp/environment.yml
 ARG conda_dir
 ENV CONDA_PREFIX=$conda_dir
 
+ARG venv_name
+
 ENV PATH="${PATH}:/root/.local/bin:${CONDA_PREFIX}/bin"
 ENV VENV_NAME="$venv_name"
 
@@ -85,6 +80,8 @@ SHELL ["conda", "run", "-n", "od_env", "/bin/bash", "-c"]
 
 WORKDIR /usr/local/src/chromadb
 
+ARG pip_cache_dir=/root/.cache/pip
+
 RUN --mount=type=cache,target=${pip_cache_dir},sharing=locked \
     if [ -n "${DEBUG}" ]; then set -eux; fi && \
     eval conda shell.bash activate "${VENV_NAME}" && \
@@ -92,6 +89,7 @@ RUN --mount=type=cache,target=${pip_cache_dir},sharing=locked \
     pip install -q -r requirements.txt && \
     pip install .
 
+ARG app_dir
 ENV APP_DIR="$app_dir"
 
 WORKDIR ${APP_DIR}
@@ -108,6 +106,9 @@ RUN if [ ! -z "${DEBUG}" ]; then set -eux; fi && \
     pip freeze --local --all -r "$APP_DIR/requirements.txt"
 
 ENV BIN_DIR=$bin_dir
+
+ARG litellm_port=11111
+ARG jupyter_port=37799
 
 COPY . ${APP_DIR}
 COPY docker/devin/app/entrypoint.sh /docker-entrypoint.sh

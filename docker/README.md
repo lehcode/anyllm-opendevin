@@ -6,6 +6,11 @@
 - Build cache shared between services
 - Localization at OS level with 152 UTF-8 locales
 
+## UI
+
+- Independent `docker compose` service
+- Yarn package manager (available out-of-the-box, so no new dependencies) for seamless [NX integration](https://nx.dev/nx-api/react) with `@nx/react`
+
 ## Dockerized OpenDevin
 
 Use following sequence to have it up and running.
@@ -88,3 +93,9 @@ Optionally enable service to start automatically on boot.
 ```bash
 sudo systemctl enable oppendevin
 ```
+
+## TODO
+
+- Refactor UI build
+- Add HMR and live reload for UI development mode
+- Configure production build for user convenience
