@@ -25,6 +25,7 @@ services:
     env_file:
       - ./.env
       - docker/devin/app/.env
+    command: "-m mixtral -e llama2"
     depends_on:
       - litellm
       - postgres
