@@ -15,7 +15,7 @@ services:
       args:
         # jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-        conda_dir: ${APP_DIR:?}/.conda
+        conda_dir: /var/miniconda
         nvidia_utils_driver: 550
         app_root: ${APP_ROOT:?}
         venv_name: ${VENV_NAME:?}
@@ -25,6 +25,7 @@ services:
     env_file:
       - ./.env
       - docker/devin/app/.env
+    command: "-m mixtral -e llama2"
     depends_on:
       - litellm
       - postgres
