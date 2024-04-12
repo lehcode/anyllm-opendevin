@@ -76,10 +76,6 @@ ARG pm_cache_dir=/usr/local/share/.cache/yarn/v6
 ENV yarn_global_root=/usr/local/lib
 ENV PATH="${PATH}:$yarn_global_root/node_modules/npm/bin:$yarn_global_root/bin"
 
-RUN if [ -n "$debug" ]; then set -eux; fi && \
-    apk update && if [ -z "$debug" ]; then apk upgrade; fi && \
-    apk add git
-
 WORKDIR $build_dir
 
 COPY --from=builder $build_dir .

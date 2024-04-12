@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     pip install -q wheel && \
     pip wheel --wheel-dir /wheels /wheels/${proxy_wheel}
 
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bullseye as exec
 
 ARG mitmproxy_dir
 ARG uid
