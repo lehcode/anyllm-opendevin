@@ -1,11 +1,20 @@
 # Docker Support
 
-- NVidia CUDA 12.4.0 Docker image with GPU support
+- Pretending to be developer-friendly🤞
+- With convenience for end-users 🕴️
+- Runs from sources 🧾, no build is necessary
+- Source directories are mapped into container directory to just run
+
+# Opendevin Backend
+
+- Docker image with GPU support with NVidia CUDA 12.4.0
 - Python 3.11.8
-- Miniconda3 environment
-- Build cache shared between services
-- Localization at OS level with 152 UTF-8 locales.
-Uncomment locales in `docker/locales` file.
+- Miniconda3 environment:
+Python packages are under conda control. No PIP🪦.
+- Build caches shared between services for build performance
+- Localization at OS level with 152 UTF-8 locales. Major and hieroglyphic languages with dialects are enabled by default.
+  1. Uncomment necessary locales in `docker/locales` file
+  2. Run `docker compose up --build --remove-orphans`
 
 ## UI
 
@@ -42,7 +51,7 @@ Also `docker compose up --build app` will start application container with depen
 
 1. Clone the repository
 
-`git clone https://github.com/lehcode/oppendevin.git /opt/opendevin`
+`git clone https://github.com/lehcode/oppendevin.git /opt/od`
 
 1. Stop or disable existing ollama
 
@@ -70,7 +79,7 @@ After=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/opendevin
+WorkingDirectory=/opt/od
 ExecStart=/usr/local/bin/docker-compose up up -d --remove-orphans
 ExecStop=/usr/local/bin/docker-compose down
 
@@ -97,6 +106,7 @@ sudo systemctl enable oppendevin
 
 ## TODO
 
+- **Describe all build features 🫤**
 - Refactor UI build
 - HMR and live reload for UI service in development mode
 - Configure production build for user convenience

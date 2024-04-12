@@ -24,7 +24,7 @@ RUN if [ -n "$debug" ]; then set -eux; fi && \
 ARG node_env
 ARG node_options
 ARG pm_cache_dir=/usr/local/share/.cache/yarn/v6
-ARG build_dir=/opt/ui_build
+ARG build_dir
 
 ENV NODE_ENV="$node_env"
 ENV yarn_global_root=/usr/local/lib

@@ -1,20 +1,21 @@
 version: "3.8"
+
 services:
   # Devin Out-of-The-Box Agent Service
   app:
     container_name: devin-app
-    hostname: oppendevin
-    image: oppendevin-cuda_${CUDA_VERSION:?}-conda:latest
-#    pull_policy: always
+    hostname: opendevin
+    image: lehcode/oppendevin-cuda_${CUDA_VERSION:?}_conda:dev
+    pull_policy: always
     build:
       dockerfile: docker/devin/app/Dockerfile
       args:
         litellm_port: ${LITELLM_PORT:?}
         jupyter_port: ${JUPYTER_PORT:?}
         debug: ${DEBUG:-}
-        conda_dir: ${APP_DIR:?}/.conda
+        conda_dir: /var/miniconda
         nvidia_utils_driver: 550
-        app_dir: /opt/opendevin
+        app_dir: ${APP_DIR:?}
         venv_name: ${VENV_NAME:?}
         locale: ${LANG:?}
         timezone: ${TZ:?}
@@ -24,7 +25,6 @@ services:
 #    command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
-      - mitm
       - postgres
       - redis
     networks:
@@ -32,24 +32,20 @@ services:
         ipv4_address: ${APP_HOST:?}
     volumes:
       - root_dir_vol:/root
-      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
-#      - conda_vol:${CONDA_PREFIX:?}:tmpfs=4G
-      - od_vol:${APP_DIR:?}
+      - pip_cache_vol:/root/.cache/pip
+      - conda_vol:${CONDA_PREFIX:?}
 #      - ./requirements.txt:${APP_DIR:?}/requirements.txt
-#      - ./environment.yml:${APP_DIR:?}/environment.yml
+      - ./environment.yml:${APP_DIR:?}/environment.yml
       - ./workspace:${APP_DIR:?}/workspace
-#      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
-      # Uncomment mounts if needed for development
-      # - ./Makefile:${BUILD_DIR:?}/
-      # - ./pyproject.toml:${BUILD_DIR:?}/
-      # - ./config.toml.template:${BUILD_DIR:?}/
-      # - ./.env:${BUILD_DIR:?}/
-      # - ./opendevin:${BUILD_DIR:?}/
-      # - ./agenthub:${BUILD_DIR:?}/
-      # - ./dev_config:${BUILD_DIR:?}/
-      # - ./evaluation:${BUILD_DIR:?}/
-      # - ./tests:${BUILD_DIR:?}/
-    working_dir: ${APP_DIR}
+      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
+      - ./Makefile:${APP_DIR:?}/Makefile
+      - ./pyproject.toml:${APP_DIR:?}/pyproject.toml
+      - ./config.toml.template:${APP_DIR:?}/config.toml.template
+      - ./.env:${APP_DIR:?}/.env
+      - ./opendevin:${APP_DIR:?}/opendevin
+      - ./agenthub:${APP_DIR:?}/agenthub
+      - ./dev_config:${APP_DIR:?}/dev_config
+      - ./tests:${APP_DIR:?}/tests
     tmpfs:
       - /run
       - /tmp
@@ -92,7 +88,6 @@ services:
     depends_on:
       - redis
       - postgres
-      - ollama
     networks:
       - opendevin-net
     healthcheck:
@@ -110,7 +105,7 @@ services:
   redis:
     image: redis/redis-stack:latest
     pull_policy: always
-    container_name: redis-stack-server
+    container_name: redis-stack
     env_file:
       - .env
       - docker/redis/redis.env
@@ -139,69 +134,10 @@ services:
     networks:
       - opendevin-net
 
-  # Ollama service
-  ollama:
-    image: ollama/ollama
-    pull_policy: always
-    container_name: ollama-service
-    hostname: ollama
-    platform: linux/amd64
-    env_file:
-      - .env
-      - docker/ollama/ollama.env
-    tty: false
-    ports:
-      - "22434:11434"
-    volumes:
-      - ${HOST_MODELS_DIR:?}:/root/.ollama/models
-      - pip_cache_vol:/root/.cache/pip
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: "nvidia"
-              count: 1
-              capabilities: [ "gpu" ]
-
-    networks:
-      - opendevin-net
-    tmpfs:
-      - /run
-      - /var/run
-      - /tmp
-      - /var/tmp
-
-  mitm:
-    image: oppendevin-mitmproxy_${MITMPROXY_VERSION:?}
-    pull_policy: always
-    build:
-      dockerfile: ./docker/mitmproxy/Dockerfile
-      args:
-        version: ${MITMPROXY_VERSION:?}
-        proxy_wheel: mitmproxy-${MITMPROXY_VERSION:?}-py3-none-any.whl
-        mitmproxy_dir: ${MITMPROXY_DIR:?}
-        uid: 1000
-        gid: 1000
-    container_name: mitmproxy
-    command: "mitmweb --web-host 0.0.0.0 --web-port 8081 --mode reverse:http://ollama:11434@44444 --verbose --anticache --anticomp"
-    networks:
-      - opendevin-net
-    volumes:
-      - ./.mitmproxy:${MITMPROXY_DIR:?}
-    tty: true
-    stdin_open: true
-    ports:
-      - "0.0.0.0:8081:8081"
-    tmpfs:
-      - /run
-      - /var/run
-      - /tmp
-      - /var/tmp
-
   # UI service
   ui:
     container_name: devin-ui
-    image: oppendevin_ui-node_${NODE_VERSION:?}-npm_${NPM_VERSION}-pnpm-reactjs
+    image: lehcode/oppendevin_ui-node_${NODE_VERSION:?}-npm_${NPM_VERSION}-pnpm-reactjs:dev
     pull_policy: always
     build:
       dockerfile: docker/devin/ui/Dockerfile
@@ -226,13 +162,13 @@ services:
     entrypoint: "/docker-entrypoint.sh"
     volumes:
       - ./frontend:/opt/ui_build
+
 networks:
   opendevin-net:
     ipam:
       driver: default
       config:
         - subnet: 172.28.0.0/16
-#          gateway: 172.28.111.1
 
 volumes:
   root_dir_vol:

@@ -3,12 +3,23 @@
 eval "$(conda shell.bash activate "${VENV_NAME}")"
 
 if [ -n "${DEBUG}" ]; then
-    set -eux
-    echo "Python executable in '${VENV_NAME}': $(python3 --version)"
+    echo "Python executable in ${VENV_NAME}': $(which python3) v$(python3 --version)"
+
     echo "Conda environments info:"
     conda info --envs
+
+    env | grep PYTHONPATH
+
     echo "Nvidia CUDA properties:"
     nvidia-smi
+
+    pwd
+
+    ls -al .
 fi
 
-python3 -m uvicorn opendevin.server.listen:app --reload --port "${APP_PORT}" --host "${APP_HOST}"
+set -eux
+
+# Start API server
+python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level debug
+

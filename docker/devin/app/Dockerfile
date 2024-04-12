@@ -8,17 +8,10 @@ ARG ubuntu_version
 LABEL org.opencontainers.image.description="Devin with Nvidia CUDA v${cuda_version} and Miniconda3"
 LABEL org.opencontainers.image.author="lehcode <53556648+lehcode@users.noreply.github.com>"
 
-ARG timezone=Etc/UTC
-ARG venv_name=conda_env
-ARG app_dir
 ARG debug
-ARG workspace_dir
-ARG bin_dir=/usr/local/bin
-ARG pip_cache_dir=/root/.cache/pip
+#ARG pip_cache_dir=/root/.cache/pip
 ARG apt_cache_dir=/var/cache/apt
-ARG venv_name
-ARG litellm_port=11111
-ARG jupyter_port=37799
+
 ARG nvidia_utils_driver=550
 
 ENV DEBUG="$debug"
@@ -34,9 +27,12 @@ RUN --mount=type=cache,target=${apt_cache_dir},sharing=locked \
       nvidia-utils-${nvidia_utils_driver} && \
     if [ -z "${DEBUG}" ]; then apt-get -qy upgrade; fi
 
+ARG timezone=Etc/UTC
 ARG locale
+
 ENV LANG="$locale"
 ENV TZ="$timezone"
+
 COPY docker/locales /etc/locale.gen
 
 RUN if [ -n "$debug" ]; then set -eux; fi && \
@@ -53,10 +49,15 @@ RUN if [ -n "$debug" ]; then set -eux; fi && \
 COPY docker/devin/app/conda.base.tmpl.yml /tmp/environment.yml
 
 ARG conda_dir
+ARG venv_name
+ARG app_dir
 
 ENV CONDA_PREFIX=$conda_dir
 ENV VENV_NAME="$venv_name"
 ENV APP_DIR="$app_dir"
+
+
+ARG app_dir
 
 WORKDIR "$app_dir"
 
@@ -69,62 +70,76 @@ RUN if [ -n "${DEBUG}" ]; then set -eux; fi && \
 ENV PATH="/root/.local/bin:${CONDA_PREFIX}/bin:${PATH}"
 ARG conda_pkgs_dir=$CONDA_PREFIX/pkgs
 
-RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
-    if [ -n "${DEBUG}" ]; then set -eux; fi && \
-    conda config --set channel_priority disabled && \
-    conda install -qy pip && \
-    conda init -q bash && \
-    conda env create -y -f /tmp/environment.yml -n "${VENV_NAME}"
+WORKDIR $CONDA_PREFIX
 
 RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
     if [ -n "${DEBUG}" ]; then set -eux; fi && \
-    conda install -y -n "${VENV_NAME}" pip && \
-    conda run -n ${VENV_NAME} pip install --upgrade pip && \
-    conda install -y -n "${VENV_NAME}" pytorch::pytorch==2.2.2
+    conda config --add channels conda && \
+    conda config --prepend channels conda-forge && \
+    conda config --set channel_priority disabled && \
+    conda install -qy pip && \
+    conda init -q bash && \
+    conda env create -y -f /tmp/environment.yml -n "${VENV_NAME}" 2>&1 > /dev/null
+
+RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
+    if [ -n "${DEBUG}" ]; then set -eux; fi && \
+    conda install -q -y -n "${VENV_NAME}" pip
+
+ARG bin_dir=/usr/local/bin
+
+ENV PYTHONPATH="$app_dir"
+ENV BIN_DIR="$bin_dir"
+
+WORKDIR "$app_dir"
 
 # Activate Miniconda environment
 RUN eval "$(conda shell.bash activate "${VENV_NAME}")"
 # Make RUN commands use the new environment
 SHELL ["conda", "run", "-n", "od_env", "/bin/bash", "-c"]
 
-COPY requirements.txt .
-COPY agenthub .
-COPY dev_config .
-COPY evaluation .
-COPY opendevin .
-COPY tests .
-COPY .env .env
-#COPY .git .
+RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
+    if [ -n "$debug" ]; then set -eux; fi && \
+    conda config --add channels anaconda && \
+    conda config --add channels conda-forge && \
+    conda config --set channel_priority strict && \
+    conda install -y uvicorn chromadb jupyter && \
+    conda config --add channels pytorch && \
+    conda install -y pytorch::pytorch && \
+    conda config --add channels microsoft && \
+    conda install -y microsoft::playwright && \
+    conda config --set channel_priority disabled
+
+COPY .env .
 COPY config.toml.template .
+COPY requirements.txt .
 COPY pyproject.toml .
 
-ENV BIN_DIR=$bin_dir
+RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
+    if [ -n "$debug" ]; then set -eux; fi && \
+    pip install -r requirements.txt
 
-RUN --mount=type=cache,target=${pip_cache_dir},sharing=locked \
-    if [ -n "${DEBUG}" ]; then set -eux; fi && \
-    pip install -r requirements.txt && \
-    pip install uvicorn jupyter notebook playwright
+ARG litellm_port=11111
+ARG jupyter_port=37799
+ARG workspace_dir
 
-#WORKDIR /usr/local/src/chromadb
-#
-#RUN --mount=type=cache,target=${pip_cache_dir},sharing=locked \
-#    if [ -n "${DEBUG}" ]; then set -eux; fi && \
-#    eval conda shell.bash activate "${VENV_NAME}" && \
-#    git clone https://github.com/chroma-core/chroma.git . && \
-#    pip install -q -r requirements.txt && \
-#    pip install .
+COPY agenthub agenthub
+COPY dev_config dev_config
+COPY evaluation evaluation
+COPY opendevin opendevin
+COPY tests tests
 
-RUN if [ ! -z "${DEBUG}" ]; then set -eux; fi && \
+RUN --mount=type=cache,target=${conda_pkgs_dir},sharing=locked \
+    if [ -n "$debug" ]; then set -eux; fi && \
     conda env export -n "${VENV_NAME}" > environment.yml
-#    pip freeze --local --all -r "$APP_DIR/requirements.txt"
 
-RUN echo "Conda environments info:" && \
-    conda info --envs && echo $PATH && echo "$HOME"
+RUN if [ -n "$debug" ]; then set -eux; fi && \
+    echo "Conda environments info:" && \
+    conda info --envs && \
+    echo "PYTHONPATH variable:" $(env | grep PYTHONPATH)
 
-#SHELL ["/bin/bash", "-c"]
-
+COPY docker/devin/app/run_api.py run_api.py
 COPY docker/devin/app/entrypoint.sh /docker-entrypoint.sh
 COPY docker/devin/app/configure.py "${APP_DIR}/configure_devin"
-COPY docker/env_debug.sh /usr/local/bin/env_debug
+COPY docker/env_debug.sh "$bin_dir/env_debug"
 
 CMD ["-m", "mixtral", "-e", "llama2"]
