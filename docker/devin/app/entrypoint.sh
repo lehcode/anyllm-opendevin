@@ -19,5 +19,9 @@ fi
 set -eux
 
 # Start API server
-python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level info
+if [ -n "${DEBUG}" ]; then
+    python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level info
+else
+    python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level crit
+fi
 
