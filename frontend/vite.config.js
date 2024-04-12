@@ -57,6 +57,7 @@ viteConfig = {
         },
       },
     },
+    server: {},
   },
 };
 
@@ -68,6 +69,17 @@ if (process.env.NODE_ENV === "production") {
   // Development configuration
   viteConfig.base = ""; // Set the base URL for development
   viteConfig.build.minify = false; // Set the base URL for development
+}
+
+// Applied only in non-interactive environment, i.e. Docker
+if (process.env.DEBIAN_FRONTEND === "noninteractive") {
+  const dockerConfig = {
+    server: {
+      origin: `http://ui:${process.env.UI_HTTP_PORT}`,
+    },
+  };
+
+  viteConfig = Object.assign({}, ...viteConfig, ...dockerConfig);
 }
 
 export default defineConfig(viteConfig);

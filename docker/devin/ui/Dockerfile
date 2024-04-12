@@ -81,7 +81,7 @@ COPY --from=builder $build_dir .
 COPY --from=builder $build_dir/yarn.lock $build_dir/yarn.lock
 COPY --from=builder $build_dir/package.json $build_dir/package.json
 COPY --from=builder $build_dir/.npmrc $build_dir/.npmrc
-COPY --from=builder $build_dir/vite.config.js $build_dir/vite.config.ext.js
+COPY --from=builder $build_dir/vite.config.js $build_dir/vite.config.js
 
 RUN --mount=type=cache,target=$pm_cache_dir \
     if [ -n "$debug" ]; then set -eux; fi && \
@@ -102,7 +102,7 @@ RUN --mount=type=cache,target=$build_dir/dist \
     vite build --config vite.config.js --clearScreen false
 
 COPY docker/devin/ui/entrypoint.sh /docker-entrypoint.sh
-COPY docker/devin/ui/vite.config.js $app_dir/vite.config.ext.js
+COPY frontend/vite.config.js $app_dir/vite.config.js
 
 ENTRYPOINT ["/docker-entrypoint.sh", "--"]
 CMD ["-m", "mistral:7b", "-e", "llama2"]
