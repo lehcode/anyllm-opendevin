@@ -42,7 +42,7 @@ Also `docker compose up --build app` will start application container with depen
 
 1. Clone the repository
 
-`git clone https://github.com/lehcode/oppendevin.git /opt/oppendevin`
+`git clone https://github.com/lehcode/oppendevin.git /opt/opendevin`
 
 1. Stop or disable existing ollama
 
@@ -70,7 +70,7 @@ After=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/oppendevin
+WorkingDirectory=/opt/opendevin
 ExecStart=/usr/local/bin/docker-compose up up -d --remove-orphans
 ExecStop=/usr/local/bin/docker-compose down
 

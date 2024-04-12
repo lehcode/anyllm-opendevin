@@ -5,7 +5,7 @@ services:
     container_name: devin-app
     hostname: oppendevin
     image: oppendevin-cuda_${CUDA_VERSION:?}-conda:latest
-    pull_policy: always
+#    pull_policy: always
     build:
       dockerfile: docker/devin/app/Dockerfile
       args:
@@ -21,7 +21,7 @@ services:
     env_file:
       - ./.env
       - docker/devin/app/.env
-    command: /docker-entrypoint.sh -m mixtral -e llama2
+#    command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
       - mitm
@@ -33,12 +33,12 @@ services:
     volumes:
       - root_dir_vol:/root
       - pip_cache_vol:/root/.cache/pip:tmpfs=4G
-      - conda_vol:${CONDA_PREFIX:?}:tmpfs=4G
+#      - conda_vol:${CONDA_PREFIX:?}:tmpfs=4G
       - od_vol:${APP_DIR:?}
-      - ./requirements.txt:${APP_DIR:?}/requirements.txt
-      - ./environment.yml:${APP_DIR:?}/environment.yml
+#      - ./requirements.txt:${APP_DIR:?}/requirements.txt
+#      - ./environment.yml:${APP_DIR:?}/environment.yml
       - ./workspace:${APP_DIR:?}/workspace
-      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
+#      - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
       # Uncomment mounts if needed for development
       # - ./Makefile:${BUILD_DIR:?}/
       # - ./pyproject.toml:${BUILD_DIR:?}/
@@ -60,6 +60,7 @@ services:
     tty: true
     stdin_open: true
     restart: no
+    entrypoint: /docker-entrypoint.sh
     deploy:
       resources:
         reservations:

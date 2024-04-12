@@ -4,9 +4,8 @@ echo "Container IP: $(hostname -i)"
 echo "Environment variables:"
 env | grep NVIDIA
 echo "Python environment and executables status:"
-python3 --version
-echo "Python executable: $(which python3)/$(python3 --version)"
-echo "PIP executable: $(which pip)/$(pip --version)"
+echo "Default '$(which python3)'" python3 --version
+echo "PIP executable '$(which pip)' pip --version"
 echo "Python executable in ${VENV_NAME}: $(conda run -n ${VENV_NAME} python3 --version)"
 echo "Python executable in ${VENV_NAME}: $(conda run -n ${VENV_NAME} pip --version)"
 echo "Conda environments info:"
