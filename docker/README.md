@@ -4,7 +4,8 @@
 - Python 3.11.8
 - Miniconda3 environment
 - Build cache shared between services
-- Localization at OS level with 152 UTF-8 locales
+- Localization at OS level with 152 UTF-8 locales.
+Uncomment locales in `docker/locales` file.
 
 ## UI
 
@@ -97,5 +98,7 @@ sudo systemctl enable oppendevin
 ## TODO
 
 - Refactor UI build
-- Add HMR and live reload for UI development mode
+- HMR and live reload for UI service in development mode
 - Configure production build for user convenience
+- [GPT Researcher](https://github.com/assafelovic/gpt-researcher) integration
+- [MemGPT](https://github.com/cpacker/MemGPT) integration
