@@ -5,16 +5,17 @@ FROM node:${node_version}-alpine as builder
 ARG node_version
 ARG npm_version
 ARG debug
+ARG build_dir=/opt/opendevin/build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 COPY docker/openssl.cnf /etc/ssl/openssl.cnf
 
-WORKDIR /root
+WORKDIR $build_dir
 
 RUN if [ -n "$debug" ]; then set -eux; fi && \
     apk update && if [ -z "$debug" ]; then apk upgrade; fi && \
-    apk add openssl ca-certificates && \
+    apk --no-cache add openssl ca-certificates && \
     mkdir -p /root/devin/.ssl && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
       -keyout /root/devin/.ssl/privkey.pem \
@@ -30,8 +31,6 @@ ENV NODE_ENV="$node_env"
 ENV yarn_global_root=/usr/local/lib
 ENV PATH="${PATH}:$yarn_global_root/node_modules/npm/bin:$yarn_global_root/bin"
 ENV NODE_OPTIONS="$node_options"
-
-WORKDIR $build_dir
 
 RUN --mount=type=cache,target=$pm_cache_dir \
     if [ -n "$debug" ]; then set -eux; fi && \
@@ -65,12 +64,13 @@ FROM node:${node_version}-slim as serve
 ARG debug
 ARG node_env
 ARG node_options
+ARG app_dir=/opt/opendevin/ui
 
 ENV DEBUG=$debug
 ENV NODE_OPTIONS="$node_options"
 ENV NODE_ENV=$node_env
 
-ARG build_dir=/opt/ui_build
+ARG build_dir=/opt/opendevin/build
 ARG pm_cache_dir=/usr/local/share/.cache/yarn/v6
 
 ENV yarn_global_root=/usr/local/lib
@@ -79,9 +79,10 @@ ENV PATH="${PATH}:$yarn_global_root/node_modules/npm/bin:$yarn_global_root/bin"
 WORKDIR $build_dir
 
 COPY --from=builder $build_dir .
-COPY --from=builder $build_dir/yarn.lock /opt/ui_app/
-COPY --from=builder $build_dir/package.json /opt/ui_app/package.json
-COPY --from=builder $build_dir/.npmrc /opt/ui_app/.npmrc
+COPY --from=builder $build_dir/yarn.lock $build_dir/yarn.lock
+COPY --from=builder $build_dir/package.json $build_dir/package.json
+COPY --from=builder $build_dir/.npmrc $build_dir/.npmrc
+COPY --from=builder $build_dir/vite.config.js $build_dir/vite.config.ext.js
 
 RUN --mount=type=cache,target=$pm_cache_dir \
     if [ -n "$debug" ]; then set -eux; fi && \
@@ -97,11 +98,12 @@ RUN --mount=type=cache,target=$pm_cache_dir \
 
 #RUN ls -al  && exit 1
 
-#RUN if [ -n "$debug" ]; then set -eux; fi && \
-#    npm config set prefix "$yarn_global_root" && \
-#    npm config set audit false
+RUN --mount=type=cache,target=$build_dir/dist \
+    if [ -n "$debug" ]; then set -eux; fi && \
+    vite build --config vite.config.js --clearScreen false
 
 COPY docker/devin/ui/entrypoint.sh /docker-entrypoint.sh
+COPY docker/devin/ui/vite.config.js $app_dir/vite.config.ext.js
 
 ENTRYPOINT ["/docker-entrypoint.sh", "--"]
 CMD ["-m", "mistral:7b", "-e", "llama2"]

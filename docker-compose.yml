@@ -22,7 +22,6 @@ services:
     env_file:
       - ./.env
       - docker/devin/app/.env
-#    command: /docker-entrypoint.sh -m mixtral -e llama2
     depends_on:
       - litellm
       - postgres
@@ -36,7 +35,7 @@ services:
       - conda_vol:${CONDA_PREFIX:?}
 #      - ./requirements.txt:${APP_DIR:?}/requirements.txt
       - ./environment.yml:${APP_DIR:?}/environment.yml
-      - ./workspace:${APP_DIR:?}/workspace
+      - ./workspace:${WORKSPACE_DIR:?}
       - ./docker/devin/app/.condarc:${CONDA_PREFIX:?}/.condarc
       - ./Makefile:${APP_DIR:?}/Makefile
       - ./pyproject.toml:${APP_DIR:?}/pyproject.toml
@@ -160,8 +159,8 @@ services:
       - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
     tty: false
     entrypoint: "/docker-entrypoint.sh"
-    volumes:
-      - ./frontend:/opt/ui_build
+#    volumes:
+#      - ./frontend:/opt/ui_build
 
 networks:
   opendevin-net:

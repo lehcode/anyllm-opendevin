@@ -14,12 +14,10 @@ if [ -n "${DEBUG}" ]; then
     nvidia-smi
 
     pwd
-
-    ls -al .
 fi
 
 set -eux
 
 # Start API server
-python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level debug
+python3 run_api.py --port ${APP_PORT} --host ${APP_HOST} --reload --log-level info
 

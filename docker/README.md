@@ -19,7 +19,7 @@ Python packages are under conda control. No PIP🪦.
 ## UI
 
 - Independent `docker compose` service
-- Yarn package manager (available out-of-the-box, so no new dependencies) for seamless [NX integration](https://nx.dev/nx-api/react) with `@nx/react`
+- Yarn package manager (available out-of-the-box, so no new dependencies) for seamless [NX integration](https://nx.dev/nx-api/react) with `@nx/react`. After many attempts it showed itself as the most robust for building this UI project.
 
 ## Dockerized OpenDevin
 
@@ -51,7 +51,7 @@ Also `docker compose up --build app` will start application container with depen
 
 1. Clone the repository
 
-`git clone https://github.com/lehcode/oppendevin.git /opt/od`
+`git clone https://github.com/lehcode/oppendevin.git /home/<your_username>/opendevin`
 
 1. Stop or disable existing ollama
 
@@ -79,7 +79,7 @@ After=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/od
+WorkingDirectory=/home/<your_username>/opendevin
 ExecStart=/usr/local/bin/docker-compose up up -d --remove-orphans
 ExecStop=/usr/local/bin/docker-compose down
 
