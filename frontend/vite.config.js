@@ -89,7 +89,9 @@ if (process.env.DEBIAN_FRONTEND === "noninteractive") {
 if (process.env.DEBIAN_FRONTEND === "noninteractive") {
   const dockerConfig = {
     server: {
-      origin: `http://ui:${process.env.UI_HTTP_PORT}`,
+      host: os.hostname(),
+      origin: `http://web_ui:${process.env.UI_HTTP_PORT}`,
+      port: 4173,
     },
   };
 
