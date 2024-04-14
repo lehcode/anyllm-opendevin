@@ -14,7 +14,6 @@ if [ -n "${DEBUG}" ]; then
     env | grep JUPYTER_PORT
     echo "Nvidia CUDA properties:"
     nvidia-smi
-    bash $BIN_DIR/env_debug
 fi
 
 set -eux
