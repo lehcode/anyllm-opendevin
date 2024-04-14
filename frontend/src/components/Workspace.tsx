@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IoIosGlobe } from "react-icons/io";
 import i18next from "i18next";
-import { FaCode } from "react-icons/fa6";
 import Calendar from "../assets/calendar";
 import { AllTabs, TabOption, TabType } from "../types/TabOption";
 import Browser from "./Browser";
