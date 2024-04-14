@@ -2,10 +2,10 @@ version: "3.8"
 
 services:
   # Devin Out-of-The-Box Agent Service
-  app:
-    container_name: devin-app
-    hostname: opendevin
-    image: lehcode/oppendevin-cuda_${CUDA_VERSION:?}_conda:dev
+  devin:
+    container_name: devin_backend
+    hostname: devin
+    image: lehcode/opendevin_api-cuda${CUDA_VERSION:?}-miniconda:dev
     pull_policy: always
     # Override the default models and rebuild image with restart container then
     # These arguments will override defaults
@@ -25,7 +25,7 @@ services:
     env_file:
       - ./.env
       - docker/devin/app/.env
-#    command: /docker-entrypoint.sh -m mixtral -e llama2
+    command: "-m mixtral -e llama2"
     depends_on:
       - litellm
       - postgres
