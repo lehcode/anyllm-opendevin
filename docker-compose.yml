@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # Devin Out-of-The-Box Agent Service
   devin:
@@ -22,12 +20,14 @@ services:
         locale: ${LANG:?}
         timezone: ${TZ:?}
         backend_host: ${DEVIN_HOST:?}
+        devin_ws_port: ${DEVIN_WS_PORT:?}
+        jupyter_port: ${JUPYTER_PORT:?}
+        workspace_dir: ${WORKSPACE_DIR:?}
     env_file:
       - ./.env
       - docker/devin/app/.env
     command: "-m mixtral -e llama2"
     depends_on:
-      - litellm
       - postgres
       - redis
     networks:
@@ -35,19 +35,10 @@ services:
         ipv4_address: ${DEVIN_HOST:?}
     volumes:
       - root_dir_vol:/root
-      - pip_cache_vol:/root/.cache/pip
-      - conda_vol:${CONDA_ROOT:?}
+#      - pip_cache_vol:/root/.cache/pip
+#      - conda_vol:${CONDA_ROOT:?}
       - ./environment.yml:${APP_ROOT:?}/environment.yml
-      - ./workspace:${WORKSPACE_DIR:?}
-#      - ./docker/devin/app/.condarc:${CONDA_ROOT:?}/.condarc
-#      - ./Makefile:${APP_ROOT:?}/Makefile
-#      - ./pyproject.toml:${APP_ROOT:?}/pyproject.toml
-#      - ./config.toml.dist:${APP_ROOT:?}/config.toml
-#      - ./.env:${APP_ROOT:?}/.env
-#      - ./opendevin:${APP_ROOT:?}/opendevin
-#      - ./agenthub:${APP_ROOT:?}/agenthub
-#      - ./dev_config:${APP_ROOT:?}/dev_config
-#      - ./tests:${APP_ROOT:?}/tests
+      - ./workspace_dir:${WORKSPACE_DIR:?}
     tmpfs:
       - /run
       - /tmp
@@ -59,7 +50,7 @@ services:
       - "5678:5678"
     tty: true
     restart: no
-    entrypoint: /docker-entrypoint.sh
+    entrypoint: $APP_ROOT/docker-entrypoint.sh
     deploy:
       resources:
         reservations:
@@ -74,44 +65,13 @@ services:
       retries: 3
       start_period: 2m
 
-  litellm:
-    image: ghcr.io/berriai/litellm:main-latest
-    pull_policy: always
-    container_name: litellm_proxy
-    command: "--config /etc/config.yaml --port ${LITELLM_PORT} --num_workers 8 --detailed_debug"
-    environment:
-      DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:?}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_CONTAINER_PORT}/${POSTGRES_DB}
-    ports:
-      - "${LITELLM_PORT}:4000"
-    volumes:
-      - pip_cache_vol:/root/.cache/pip:tmpfs=4G
-      - ./docker/litellm/config.yaml:/etc/config.yaml
-      - ./docker/env_debug.sh:/usr/local/bin/env_debug
-    depends_on:
-      - redis
-      - postgres
-    networks:
-      - opendevin-net
-    healthcheck:
-      test: [ "CMD", "litellm", "--health" ]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 2m
-    tmpfs:
-      - /run
-      - /var/run
-      - /tmp
-      - /var/tmp
-
   redis:
     image: redis/redis-stack:latest
     pull_policy: always
     container_name: redis_stack
     env_file:
       - .env
-      - docker/redis/redis.env
+      - docker/redis/.env
     ports:
       - "0.0.0.0:${REDIS_SERVER_PORT}:6379"
       - "0.0.0.0:${REDIS_INSIGHT_PORT}:8001"
@@ -126,7 +86,7 @@ services:
     container_name: db_postgres
     env_file:
       - .env
-      - docker/postgres/postgres.env
+      - docker/postgres/.env
     volumes:
       - posgtres_data:${POSTGRES_DATA:-/var/lib/postgres}
     ports:
