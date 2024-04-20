@@ -1,8 +1,0 @@
-channel_priority: disabled
-devin_backend  | channels:
-  devin_backend  |   - microsoft
-  devin_backend  |   - pytorch
-  devin_backend  |   - anaconda
-  devin_backend  |   - conda-forge
-  devin_backend  |   - conda
-  devin_backend  |   - defaults
