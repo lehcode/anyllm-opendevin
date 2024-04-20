@@ -1,4 +1,5 @@
 
+from litellm import litellm
 from litellm import completion as litellm_completion
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 from litellm.exceptions import APIConnectionError, RateLimitError
@@ -6,6 +7,8 @@ from functools import partial
 
 from opendevin import config
 from opendevin.logger import llm_prompt_logger, llm_response_logger, opendevin_logger
+
+litellm.set_verbose=True
 
 DEFAULT_API_KEY = config.get('LLM_API_KEY')
 DEFAULT_BASE_URL = config.get('LLM_BASE_URL')

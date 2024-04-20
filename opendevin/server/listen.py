@@ -1,15 +1,15 @@
 import uuid
 from pathlib import Path
 import os
+import status
 
-import litellm
+from litellm import litellm
 from fastapi import Depends, FastAPI, WebSocket, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from starlette import status
 from starlette.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 
 import agenthub  # noqa F401 (we import this to get the agents registered)
 from opendevin import config, files
@@ -18,6 +18,8 @@ from opendevin.logger import opendevin_logger as logger
 from opendevin.server.agent import agent_manager
 from opendevin.server.auth import get_sid_from_token, sign_token
 from opendevin.server.session import message_stack, session_manager
+
+litellm.set_verbose=True
 
 app = FastAPI()
 
@@ -72,6 +74,11 @@ async def get_token(
     """
     Get token for authentication when starts a websocket connection.
     """
+    if not credentials:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={'error': 'Credentials are required to get a token.'},
+        )
     sid = get_sid_from_token(credentials.credentials) or str(uuid.uuid4())
     token = sign_token({'sid': sid})
     return JSONResponse(

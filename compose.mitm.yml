@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   mitm:
     image: lehcode/OpenDevin-mitmproxy_v${MITMPROXY_VERSION:?}

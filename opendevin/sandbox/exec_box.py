@@ -75,7 +75,7 @@ class DockerExecBox(Sandbox):
 
     def setup_devin_user(self):
         cmds = [
-            f'useradd --shell /bin/bash -u {USER_ID} -o -c "" -m devin',
+            f'useradd --shell /bin/bash -u 1001 -o -c "" -m devin',
             r"echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers",
             'sudo adduser devin sudo',
         ]

@@ -21,6 +21,9 @@ from opendevin.action import (
 )
 from opendevin.exceptions import AgentNoActionError
 
+from litellm import litellm
+litellm.set_verbose=True
+
 MAX_ITERATIONS = config.get('MAX_ITERATIONS')
 MAX_CHARS = config.get('MAX_CHARS')
 

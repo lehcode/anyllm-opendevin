@@ -13,6 +13,9 @@ else
     export UI_PORT="${UI_HTTP_PORT}"
 fi
 
+# echo "Waiting for backend server to start"
+# while netcat -z devin-api ${DEVIN_API_PORT}; do sleep 0.1; done
+
 if [ -n "${SECURE_MODE}" ]; then
     echo "Starting frontend server on http://0.0.0.0:${UI_PORT}"
     vite --config vite.config.js --host 0.0.0.0 --port "${UI_PORT}"

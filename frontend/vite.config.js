@@ -58,7 +58,6 @@ viteConfig = {
         },
       },
     },
-    server: {},
   },
 };
 

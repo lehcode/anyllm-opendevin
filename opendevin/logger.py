@@ -125,9 +125,9 @@ opendevin_logger.debug('Logging to %s', os.path.join(
     os.getcwd(), 'logs', 'opendevin.log'))
 
 # Exclude LiteLLM from logging output
-logging.getLogger('LiteLLM').disabled = True
-logging.getLogger('LiteLLM Router').disabled = True
-logging.getLogger('LiteLLM Proxy').disabled = True
+logging.getLogger('LiteLLM').disabled = False
+logging.getLogger('LiteLLM Router').disabled = False
+logging.getLogger('LiteLLM Proxy').disabled = False
 
 
 class LlmFileHandler(logging.FileHandler):

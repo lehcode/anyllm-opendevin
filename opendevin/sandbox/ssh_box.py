@@ -122,7 +122,7 @@ class DockerSSHBox(Sandbox):
             # Create the opendevin user
             exit_code, logs = self.container.exec_run(
                 ['/bin/bash', '-c',
-                 f'useradd -rm -d /home/opendevin -s /bin/bash -g root -G sudo -u {USER_ID} opendevin'],
+                 f'useradd -rm -d /home/opendevin -s /bin/bash -g root -G sudo -u 1001 opendevin'],
                 workdir=SANDBOX_WORKSPACE_DIR,
             )
             if exit_code != 0:
@@ -161,8 +161,8 @@ class DockerSSHBox(Sandbox):
         logger.info(
             f"Connecting to {username}@{hostname} via ssh. If you encounter any issues, you can try `ssh -v -p {self._ssh_port} {username}@{hostname}` with the password '{self._ssh_password}' and report the issue on GitHub."
         )
-        self.ssh.login(hostname, username, self._ssh_password,
-                       port=self._ssh_port)
+        self.ssh.login(server=hostname, username=username, password=self._ssh_password,
+                       port=self._ssh_port, quiet=False)
 
         # Fix: https://github.com/pexpect/pexpect/issues/669
         self.ssh.sendline("bind 'set enable-bracketed-paste off'")

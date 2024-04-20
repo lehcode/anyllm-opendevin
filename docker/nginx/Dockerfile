@@ -21,7 +21,7 @@ RUN if [ -n "$debug" ]; then set -eux; fi && \
 
 WORKDIR $ui_dir
 
-#COPY frontend/dist .
+COPY frontend/dist .
 COPY frontend/src .
 COPY frontend/package.json .
 COPY frontend/tsconfig.json .

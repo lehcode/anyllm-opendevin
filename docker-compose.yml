@@ -1,80 +1,78 @@
 services:
-  # Devin Out-of-The-Box Agent Service
   devin:
+    # image: ghcr.io/opendevin/opendevin:0.3.1
     container_name: devin_api
     hostname: devin-api
-    image: lehcode/opendevin_api-cuda${CUDA_VERSION:?}-miniconda:dev
-    pull_policy: always
-    # Override the default models and rebuild image with restart container then
-    # These arguments will override defaults
-    # command: "[-m <your_model_name>] [-e <your_embeddings_model_name>]"
     build:
-      dockerfile: docker/devin/app/Dockerfile
+      dockerfile: docker/devin/app/sandbox.Dockerfile
       args:
-        # jupyter_port: ${JUPYTER_PORT:?}
-        debug: ${DEBUG:-}
-        conda_dir: /var/miniconda
-        nvidia_utils_driver: 550
+        debug: ${DEBUG}
         app_root: ${APP_ROOT:?}
-        venv_name: ${VENV_NAME:?}
-        locale: ${LANG:?}
-        timezone: ${TZ:?}
-        backend_host: ${DEVIN_HOST:?}
-        devin_ws_port: ${DEVIN_WS_PORT:?}
-        jupyter_port: ${JUPYTER_PORT:?}
-        workspace_dir: ${WORKSPACE_DIR:?}
-    env_file:
-      - ./.env
-      - docker/devin/app/.env
-    command: "-m mixtral -e llama2"
-    depends_on:
-      - postgres
-      - redis
+    # command: ["python3", "uvicorn.run('opendevin.server.listen:app', host='0.0.0.0', port='3000', reload=True, log_level=debug)"]
+    environment:
+      WORKSPACE_MOUNT_PATH: ${WORKSPACE_DIR:?}
+      SANDBOX_USER_ID: 1000
+      RUN_AS_DEVIN: true
+      SANDBOX_TYPE: ${SANDBOX_TYPE:?}
+      LLM_API_KEY: "sk-1234"
+      LLM_MODEL: ${DEFAULT_CHAT_MODEL:?}
+      LLM_EMBEDDING_MODEL: ${LLM_EMBEDDING_MODEL:-local}
+      LLM_BASE_URL: "http://localhost:11434"
+      SSH_HOSTNAME: devin-api
+    # env_file:
+    #   - .env
+    #   - docker/devin/app/.env
+    # working_dir: ${APP_ROOT:?}
+    volumes:
+      - ./agenthub:${APP_ROOT:?}/agenthub
+      - opendevin_cache:${APP_ROOT:?}/cache
+      - ./logs:${APP_ROOT:?}/logs
+      - ./opendevin:${APP_ROOT:?}/opendevin
+      - ./workspace:${WORKSPACE_DIR:?}
+      # - conda_vol:${CONDA_ROOT:?}
+      # - root_dir_vol:/root
+      # - ./frontend/dist:${APP_ROOT:?}/frontend/dist
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${DEVIN_API_PORT}:${DEVIN_API_PORT}"
+      - "${DEVIN_WS_PORT}:${DEVIN_WS_PORT}"
+      - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
+      # VSCode Python remote debugger
+      - "0.0.0.0:5678:5678"
     networks:
       opendevin-net:
         ipv4_address: ${DEVIN_HOST:?}
-    volumes:
-      - root_dir_vol:/root
-#      - pip_cache_vol:/root/.cache/pip
-#      - conda_vol:${CONDA_ROOT:?}
-      - ./environment.yml:${APP_ROOT:?}/environment.yml
-      - ./workspace_dir:${WORKSPACE_DIR:?}
+    # entrypoint: /docker-entrypoint.sh
     tmpfs:
       - /run
       - /tmp
       - /var/run
-    ports:
-      - "${DEVIN_WS_PORT}:${DEVIN_WS_PORT}"
-      - "${JUPYTER_PORT:?}:${JUPYTER_PORT:?}"
-      # VSCode Python remote debugger
-      - "5678:5678"
-    tty: true
     restart: no
-    entrypoint: $APP_ROOT/docker-entrypoint.sh
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: "nvidia"
-              count: 1
-              capabilities: [ "gpu" ]
     healthcheck:
       test: [ "CMD", "curl", "-L", "http://localhost:${DEVIN_WS_PORT}" ]
       interval: 1m
       timeout: 10s
       retries: 3
       start_period: 2m
+    depends_on:
+      - redis
+      - postgres
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: "nvidia"
+    #           count: 1
+    #           capabilities: [ "gpu" ]
 
   redis:
     image: redis/redis-stack:latest
-    pull_policy: always
-    container_name: redis_stack
     env_file:
       - .env
       - docker/redis/.env
     ports:
-      - "0.0.0.0:${REDIS_SERVER_PORT}:6379"
-      - "0.0.0.0:${REDIS_INSIGHT_PORT}:8001"
+      # - "0.0.0.0:${REDIS_SERVER_PORT}:6379"
+      - "${REDIS_INSIGHT_PORT}:8001"
     volumes:
       - redis_data:${REDIS_DATA:-/data}
     networks:
@@ -82,15 +80,13 @@ services:
 
   postgres:
     image: postgres:latest
-    pull_policy: always
-    container_name: db_postgres
     env_file:
       - .env
       - docker/postgres/.env
     volumes:
       - posgtres_data:${POSTGRES_DATA:-/var/lib/postgres}
-    ports:
-      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
+    # ports:
+    #   - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
     tmpfs:
       - /var/run:size=1m
       - /tmp
@@ -101,7 +97,6 @@ services:
   web_ui:
     container_name: devin_web
     image: lehcode/opendevin_ui-node${NODE_VERSION:?}-npm${NPM_VERSION}-pnpm-reactjs:dev
-    pull_policy: always
     build:
       dockerfile: docker/devin/web_ui/Dockerfile
       args:
@@ -111,20 +106,19 @@ services:
         debug: ${DEBUG:?}
         node_options: ${NODE_OPTIONS}
     env_file:
-      - ./.env
+      - .env
       - docker/devin/web_ui/.env
     environment:
       BACKEND_HOST: ${DEVIN_HOST:?}:${DEVIN_API_PORT:?}
       FRONTEND_PORT: ${UI_HTTP_PORT:?}
-      LLM_PROXY_HOST: litellm
-      LLM_PROXY_PORT: ${LITELLM_PORT:?}
     networks:
       - opendevin-net
     ports:
       - "${UI_HTTP_PORT:?}:${UI_HTTP_PORT:?}"
       - "${UI_HTTPS_PORT:?}:${UI_HTTPS_PORT:?}"
     tty: true
-    command: ""
+#    depends_on:
+#      - devin
 
 networks:
   opendevin-net:
@@ -134,9 +128,6 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
-  root_dir_vol:
   posgtres_data:
   redis_data:
-  pip_cache_vol:
-  conda_vol:
-  od_vol:
+  opendevin_cache:

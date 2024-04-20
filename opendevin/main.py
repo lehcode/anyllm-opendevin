@@ -10,6 +10,11 @@ from opendevin.agent import Agent
 from opendevin.controller import AgentController
 from opendevin.llm.llm import LLM
 
+import debugpy
+
+debugpy.listen(("0.0.0.0", 5678))
+print("Python debugger is waiting for client to attach...")
+debugpy.wait_for_client()
 
 def read_task_from_file(file_path: str) -> str:
     """Read task from the specified file."""
