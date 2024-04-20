@@ -7,10 +7,7 @@ const fetchToken = async (): Promise<ResFetchToken> => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${localStorage.getItem("token")}`,
   });
-  const response = await fetch(
-    `http://${process.env.APP_HOST}:${process.env.APP_PORT}/api/auth`,
-    { headers },
-  );
+  const response = await fetch(`/api/auth`, { headers });
   if (response.status !== 200) {
     throw new Error("Get token failed.");
   }
@@ -18,7 +15,7 @@ const fetchToken = async (): Promise<ResFetchToken> => {
   return data;
 };
 
-const validateToken = (token: string): boolean => {
+export const validateToken = (token: string): boolean => {
   try {
     const claims = jose.decodeJwt(token);
     return !(claims.sid === undefined || claims.sid === "");

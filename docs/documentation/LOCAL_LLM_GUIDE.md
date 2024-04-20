@@ -88,6 +88,7 @@ You should now be able to connect to `http://localhost:3001/` with your local mo
 You can resolve it by running:
     ```
     export SANDBOX_USER_ID=1000
+    export RUN_AS_DEVIN=true
     ```
 
 2. If you face issues running Poetry even after installing it during the build process, you may need to add its binary path to your environment:

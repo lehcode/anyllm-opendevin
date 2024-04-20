@@ -43,7 +43,8 @@ RUN --mount=type=cache,target=$pm_cache_dir \
     yarn global add --prefix="$yarn_global_root" typescript vite
 
 COPY .git ./../.git
-COPY frontend/*.json .
+COPY frontend/package.json .
+COPY frontend/tsconfig.json .
 COPY frontend/.npmrc .
 COPY frontend/*.config.js .
 COPY frontend/index.html .
@@ -83,10 +84,11 @@ ENV PATH="${PATH}:$yarn_global_root/node_modules/npm/bin:$yarn_global_root/bin"
 WORKDIR $build_dir
 
 COPY --from=builder $build_dir .
-COPY --from=builder $build_dir/yarn.lock $build_dir/yarn.lock
-COPY --from=builder $build_dir/package.json $build_dir/package.json
-COPY --from=builder $build_dir/.npmrc $build_dir/.npmrc
-COPY --from=builder $build_dir/vite.config.js $build_dir/vite.config.js
+COPY --from=builder $build_dir/yarn.lock yarn.lock
+COPY --from=builder $build_dir/package.json package.json
+COPY --from=builder $build_dir/tsconfig.json tsconfig.json
+COPY --from=builder $build_dir/.npmrc .npmrc
+COPY --from=builder $build_dir/vite.config.js vite.config.js
 
 COPY --from=builder /etc/ssl/openssl.cnf /etc/ssl/openssl.cnf
 COPY --from=builder /root/devin/.ssl/server_privkey.pem /root/devin/.ssl/privkey.pem
@@ -105,18 +107,15 @@ RUN --mount=type=cache,target=$pm_cache_dir \
 
 COPY frontend/vite.config.js $app_dir/vite.config.js
 
-RUN --mount=type=cache,target=$build_dir/dist \
+RUN if [ -n "$debug" ]; then set -eux; fi && \
     echo "Finalizing build..." && \
-    if [ -n "$debug" ]; then set -eux; fi && \
     rm -rf /var/lib/apt/lists/* && \
     npm cache clean --force && \
     yarn cache clean
 
-COPY docker/devin/web_ui/entrypoint.sh /docker-entrypoint.sh
-
-RUN --mount=type=cache,target=$build_dir/dist \
-    if [ -n "$debug" ]; then set -eux; fi && \
+RUN if [ -n "$debug" ]; then set -eux; fi && \
     vite build --config vite.config.js --clearScreen false
 
-ENTRYPOINT ["/bin/sh", "-c", "/docker-entrypoint.sh"]
-CMD "-m ${DEFAULT_CHAT_MODEL} -e ${DEFAULT_EMBEDDINGS_MODEL} --"
+COPY docker/devin/web_ui/entrypoint.sh /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["vite", "--config", "vite.config.js", "--host", "0.0.0.0", "--port", "3000"]

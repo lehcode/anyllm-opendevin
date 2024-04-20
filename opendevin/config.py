@@ -15,7 +15,7 @@ DEFAULT_CONFIG: dict = {
     ConfigType.WORKSPACE_BASE: os.getcwd(),
     ConfigType.WORKSPACE_MOUNT_PATH: None,
     ConfigType.WORKSPACE_MOUNT_REWRITE: None,
-    ConfigType.LLM_MODEL: 'gpt-3.5-turbo-1106',
+    ConfigType.LLM_MODEL: 'ollama/codellama',
     ConfigType.SANDBOX_CONTAINER_IMAGE: 'ghcr.io/opendevin/sandbox',
     ConfigType.RUN_AS_DEVIN: 'true',
     ConfigType.LLM_EMBEDDING_MODEL: 'local',
