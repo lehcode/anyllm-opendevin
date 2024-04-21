@@ -19,12 +19,10 @@ RUN --mount=type=cache,target=${apt_cache_dir},sharing=locked \
     if [ -n "${DEBUG}" ]; then set -eux; fi && \
     echo "Updating $ubuntu_version packages..." && \
     apt-get -q update  && \
+    if [ -z "${DEBUG}" ]; then apt-get -qy upgrade ; fi && \
     apt-get install -qy --no-install-recommends \
     tzdata locales cpanminus curl git gnupg gnupg2 gnupg1 wget \
-    nvidia-utils-${nvidia_utils_driver}  && \
-      tzdata locales cpanminus curl git gnupg gnupg2 gnupg1 wget \
-      nvidia-utils-${nvidia_utils_driver}  && \
-    if [ -z "${DEBUG}" ]; then apt-get -qy upgrade ; fi
+    nvidia-utils-${nvidia_utils_driver}
 
 #ADD https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin /tmp/
 #ADD https://developer.download.nvidia.com/compute/cuda/12.4.1/local_installers/cuda-repo-wsl-ubuntu-12-4-local_12.4.1-1_amd64.deb /tmp/
