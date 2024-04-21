@@ -57,13 +57,13 @@ services:
     depends_on:
       - redis
       - postgres
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: "nvidia"
-    #           count: 1
-    #           capabilities: [ "gpu" ]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: 1
+              capabilities: [ "gpu" ]
 
   redis:
     image: redis/redis-stack:latest

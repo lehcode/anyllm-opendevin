@@ -22,6 +22,8 @@ RUN --mount=type=cache,target=${apt_cache_dir},sharing=locked \
     apt-get install -qy --no-install-recommends \
     tzdata locales cpanminus curl git gnupg gnupg2 gnupg1 wget \
     nvidia-utils-${nvidia_utils_driver}  && \
+      tzdata locales cpanminus curl git gnupg gnupg2 gnupg1 wget \
+      nvidia-utils-${nvidia_utils_driver}  && \
     if [ -z "${DEBUG}" ]; then apt-get -qy upgrade ; fi
 
 #ADD https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin /tmp/
