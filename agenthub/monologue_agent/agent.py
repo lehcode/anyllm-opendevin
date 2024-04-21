@@ -126,7 +126,7 @@ class MonologueAgent(Agent):
     def _initialize(self, task: str):
         """
         Utilizes the INITIAL_THOUGHTS list to give the agent a context for it's capabilities and how to navigate the /workspace.
-        Short circuted to return when already initialized.
+        Short circuited to return when already initialized.
 
         Parameters:
         - task (str): The initial goal statement provided by the user
@@ -188,7 +188,7 @@ class MonologueAgent(Agent):
                     output_type = ActionType.BROWSE
                 else:
                     action = AgentThinkAction(thought=thought)
-                self._add_event(action.to_dict())
+                self._add_event(action.to_memory())
         self._initialized = True
 
     def step(self, state: State) -> Action:
@@ -203,7 +203,7 @@ class MonologueAgent(Agent):
         """
         self._initialize(state.plan.main_goal)
         for prev_action, obs in state.updated_info:
-            self._add_event(prev_action.to_dict())
+            self._add_event(prev_action.to_memory())
             self._add_event(obs.to_dict())
 
         state.updated_info = []
@@ -233,3 +233,7 @@ class MonologueAgent(Agent):
         - List[str]: A list of top 10 text results that matched the query
         """
         return self.memory.search(query)
+
+    def reset(self) -> None:
+        super().reset()
+        self.monologue = Monologue()

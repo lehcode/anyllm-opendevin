@@ -21,8 +21,10 @@ def serialization_deserialization(original_action_dict, cls):
     assert isinstance(
         action_instance, cls), f'The action instance should be an instance of {cls.__name__}.'
     serialized_action_dict = action_instance.to_dict()
+    serialized_action_memory = action_instance.to_memory()
     serialized_action_dict.pop('message')
     assert serialized_action_dict == original_action_dict, 'The serialized action should match the original action dict.'
+    assert serialized_action_memory == original_action_dict, 'The serialized action in memory should match the original action dict.'
 
 
 def test_agent_think_action_serialization_deserialization():
@@ -76,7 +78,7 @@ def test_browse_url_action_serialization_deserialization():
 def test_file_read_action_serialization_deserialization():
     original_action_dict = {
         'action': 'read',
-        'args': {'path': '/path/to/file.txt'}
+        'args': {'path': '/path/to/file.txt', 'start': 0, 'end': -1, 'thoughts': 'None'}
     }
     serialization_deserialization(original_action_dict, FileReadAction)
 
@@ -84,7 +86,7 @@ def test_file_read_action_serialization_deserialization():
 def test_file_write_action_serialization_deserialization():
     original_action_dict = {
         'action': 'write',
-        'args': {'path': '/path/to/file.txt', 'content': 'Hello world'}
+        'args': {'path': '/path/to/file.txt', 'content': 'Hello world', 'start': 0, 'end': 1, 'thoughts': 'None'}
     }
     serialization_deserialization(original_action_dict, FileWriteAction)
 

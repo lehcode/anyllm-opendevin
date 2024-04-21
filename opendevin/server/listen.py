@@ -1,15 +1,15 @@
+import json
 import uuid
 from pathlib import Path
 import os
 import status
 
-from litellm import litellm
-from fastapi import Depends, FastAPI, WebSocket, Response
+import litellm
+from fastapi import Depends, FastAPI, Response, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import JSONResponse
-from fastapi.responses import RedirectResponse
 
 import agenthub  # noqa F401 (we import this to get the agents registered)
 from opendevin import config, files
@@ -43,6 +43,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     sid = get_sid_from_token(websocket.query_params.get('token') or '')
     if sid == '':
+        logger.error('Failed to decode token')
         return
     session_manager.add_session(sid, websocket)
     # TODO: actually the agent_manager is created for each websocket connection, even if the session id is the same,
@@ -53,18 +54,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get('/api/litellm-models')
 async def get_litellm_models():
-    """
+    '''
     Get all models supported by LiteLLM.
-    """
+    '''
     return list(set(litellm.model_list + list(litellm.model_cost.keys())))
 
 
-@app.get('/api/litellm-agents')
-async def get_litellm_agents():
+@app.get('/api/agents')
+async def get_agents():
     """
     Get all agents supported by LiteLLM.
     """
-    return Agent.list_agents()
+    agents = Agent.list_agents()
+    return agents
 
 
 @app.get('/api/auth')
@@ -72,19 +74,22 @@ async def get_token(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     """
-    Get token for authentication when starts a websocket connection.
+    Generate a JWT for authentication when starting a WebSocket connection. This endpoint checks if valid credentials
+    are provided and uses them to get a session ID. If no valid credentials are provided, it generates a new session ID.
     """
-    if not credentials:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={'error': 'Credentials are required to get a token.'},
-        )
-    sid = get_sid_from_token(credentials.credentials) or str(uuid.uuid4())
+    if credentials and credentials.credentials:
+        sid = get_sid_from_token(credentials.credentials)
+        if not sid:
+            sid = str(uuid.uuid4())
+            logger.info(
+                f'Invalid or missing credentials, generating new session ID: {sid}'
+            )
+    else:
+        sid = str(uuid.uuid4())
+        logger.info(f'No credentials provided, generating new session ID: {sid}')
+
     token = sign_token({'sid': sid})
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'token': token},
-    )
+    return {'token': token, 'status': 'ok'}
 
 
 @app.get('/api/messages')
@@ -96,10 +101,7 @@ async def get_messages(
     if sid != '':
         data = message_stack.get_messages(sid)
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'messages': data},
-    )
+    return {'messages': data}
 
 
 @app.get('/api/messages/total')
@@ -107,10 +109,7 @@ async def get_message_total(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     sid = get_sid_from_token(credentials.credentials)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'msg_total': message_stack.get_message_total(sid)},
-    )
+    return {'msg_total': message_stack.get_message_total(sid)}
 
 
 @app.delete('/api/messages')
@@ -119,15 +118,7 @@ async def del_messages(
 ):
     sid = get_sid_from_token(credentials.credentials)
     message_stack.del_messages(sid)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'ok': True},
-    )
-
-
-@app.get('/api/configurations')
-def read_default_model():
-    return config.get_fe_config()
+    return {'ok': True}
 
 
 @app.get('/api/refresh-files')
@@ -141,13 +132,40 @@ def select_file(file: str):
     try:
         workspace_base = config.get('WORKSPACE_BASE')
         file_path = Path(workspace_base, file)
+        # The following will check if the file is within the workspace base and throw an exception if not
+        file_path.resolve().relative_to(Path(workspace_base).resolve())
         with open(file_path, 'r') as selected_file:
             content = selected_file.read()
     except Exception as e:
         logger.error(f'Error opening file {file}: {e}', exc_info=False)
         error_msg = f'Error opening file: {e}'
-        return Response(f'{{"error": "{error_msg}"}}', status_code=500)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={'error': error_msg},
+        )
     return {'code': content}
+
+
+@app.get('/api/plan')
+def get_plan(
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+):
+    sid = get_sid_from_token(credentials.credentials)
+    agent = agent_manager.sid_to_agent[sid]
+    controller = agent.controller
+    if controller is not None:
+        state = controller.get_state()
+        if state is not None:
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content=json.dumps(
+                    {
+                        'mainGoal': state.plan.main_goal,
+                        'task': state.plan.task.to_dict(),
+                    }
+                ),
+            )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get('/')
