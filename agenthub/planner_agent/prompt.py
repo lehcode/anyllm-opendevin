@@ -1,19 +1,15 @@
 from opendevin.controller.state.plan import Plan
 from opendevin.core.logger import opendevin_logger as logger
 from opendevin.core.schema import ActionType
-from opendevin.core.utils import json
 from opendevin.events.action import (
     Action,
     NullAction,
     action_from_dict,
 )
-from opendevin.logger import opendevin_logger as logger
-from opendevin.observation import (
+from opendevin.events.observation import (
     NullObservation,
     Observation,
 )
-from opendevin.plan import Plan
-from opendevin.schema import ActionType
 
 HISTORY_SIZE = 10
 
@@ -107,7 +103,7 @@ What is your next thought or action? Again, you must reply with JSON, and only w
 
 
 def get_hint(latest_action_id: str) -> str:
-    """ Returns action type hint based on given action_id """
+    """Returns action type hint based on given action_id"""
 
     hints = {
         '': "You haven't taken any actions yet. Start by using `ls` to check out what files you're working with.",
@@ -178,12 +174,12 @@ def parse_response(response: str) -> Action:
     Returns:
     - Action: A valid next action to perform from model output
     """
-    # attempt to load the JSON dict from the response
+    json_start = response.find('{')
+    json_end = response.rfind('}') + 1
+    response = response[json_start:json_end]
     action_dict = json.loads(response)
-
     if 'contents' in action_dict:
         # The LLM gets confused here. Might as well be robust
         action_dict['content'] = action_dict.pop('contents')
-
     action = action_from_dict(action_dict)
     return action

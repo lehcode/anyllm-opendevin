@@ -9,7 +9,7 @@ if [[ $NO_SETUP == "true" ]]; then
 fi
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Please run as root"
+  echo "The OpenDevin entrypoint.sh must run as root"
   exit 1
 fi
 

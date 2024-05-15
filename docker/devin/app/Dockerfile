@@ -21,8 +21,9 @@ ENV TZ="${timezone}"
 RUN --mount=type=cache,target="${apt_cache_dir}",sharing=locked \
     if [ -n "${debug}" ]; then set -eux; fi && \
     apt-get -q update > /dev/null && apt-get -y upgrade && \
-    apt-get -qy install --no-install-recommends tzdata locales cpanminus curl git wget ca-certificates \
-      nvidia-driver-${cuda_driver_branch} nvidia-utils-${cuda_driver_branch}
+    apt-get -qy install --no-install-recommends tzdata locales cpanminus \
+        curl git wget ca-certificates build-essential \
+        nvidia-driver-${cuda_driver_branch} nvidia-utils-${cuda_driver_branch}
 
 COPY docker/locales /etc/locale.gen
 
@@ -62,9 +63,8 @@ RUN --mount=type=cache,target="${conda_pkgs_dir}",sharing=locked \
     conda config --add channels conda  && \
     conda config --add channels conda-forge  && \
     conda config --set solver classic && \
-    conda install -qy conda=24.4.0 pip && \
+    conda install -qy conda pip && \
     conda create -qy --name "${venv_name}" python=3.12 uvicorn chromadb chroma-hnswlib && \
-    conda install -qy --name "${venv_name}" pip && \
     if [ -n "${dev_mode}" ]; then conda install --name ${venv_name} debugpy; fi
 
 COPY pyproject.toml .
@@ -79,10 +79,14 @@ ENV POETRY_CACHE_DIR=/root/.cache/pypoetry
 # In a future version of Poetry this warning will become an error!
 RUN --mount=type=cache,target=${POETRY_CACHE_DIR} \
     if [ -n "$debug" ]; then set -eux; fi && \
-    apt-get install -qy build-essential && \
-    conda run -n "${venv_name}" curl -sSL "https://install.python-poetry.org" | python3 - > /dev/null && \
-    conda run -n "${venv_name}" poetry --version && \
-    conda run -n "${venv_name}" poetry install && \
+    conda run --name "${venv_name}" curl -sSL "https://install.python-poetry.org" | python3 - > /dev/null && \
+    conda run --name "${venv_name}" poetry --version && \
+    conda run --name "${venv_name}" poetry lock && \
+    conda run --name "${venv_name}" poetry install
+
+RUN --mount=type=cache,target=${POETRY_CACHE_DIR} \
+    if [ -n "$debug" ]; then set -eux; fi && \
+    conda run -n "${venv_name}" poetry add browsergym html2text minio > /dev/null && \
     conda env export --name "${venv_name}" --file "${app_root}/environment.yml"
 
 COPY agenthub agenthub
@@ -100,6 +104,9 @@ ARG dev_mode
 ENV DEV_MODE="${dev_mode}"
 
 RUN if [ -n "${debug}" ]; then set -eux; fi && \
+    apt-get install net-tools
+
+RUN if [ -n "${debug}" ]; then set -eux; fi && \
     chmod a+x /docker-entrypoint.sh && \
     if [ -z "${dev_mode}" ]; then rm -rf /var/lib/apt/lists/*; fi
 
@@ -114,4 +121,5 @@ RUN eval "$(conda shell.bash activate "${venv_name}")"
 # Make RUN commands use the new environment
 SHELL ["conda", "run", "-n", "${venv_name}", "/bin/bash", "-c"]
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "-c", "/docker-entrypoint.sh", "--"]
+CMD "-m ${DEFAULT_CHAT_MODEL} -e ${DEFAULT_EMBEDDINGS_MODEL} --"

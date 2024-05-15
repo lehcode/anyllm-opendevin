@@ -1,5 +1,5 @@
 import ActionType from "#/types/ActionType";
-import AgentTaskAction from "#/types/AgentTaskAction";
+import AgentState from "#/types/AgentState";
 import Socket from "./socket";
 import { initializeAgent } from "./agent";
 

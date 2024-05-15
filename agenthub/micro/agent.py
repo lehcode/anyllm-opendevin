@@ -2,28 +2,56 @@ from jinja2 import BaseLoader, Environment
 
 from opendevin.controller.agent import Agent
 from opendevin.controller.state.state import State
-from opendevin.core.utils import json
+from opendevin.core.exceptions import LLMOutputError
 from opendevin.events.action import Action, action_from_dict
 from opendevin.llm.llm import LLM
-from opendevin.state import State
 
 from .instructions import instructions
 from .registry import all_microagents
 
 
 def parse_response(orig_response: str) -> Action:
-    # attempt to load the JSON dict from the response
-    action_dict = json.loads(orig_response)
+    depth = 0
+    start = -1
+    for i, char in enumerate(orig_response):
+        if char == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif char == '}':
+            depth -= 1
+            if depth == 0 and start != -1:
+                response = orig_response[start : i + 1]
+                try:
+                    action_dict = json.loads(response)
+                    action = action_from_dict(action_dict)
+                    return action
+                except json.JSONDecodeError as e:
+                    raise LLMOutputError(
+                        'Invalid JSON in response. Please make sure the response is a valid JSON object.'
+                    ) from e
+    raise LLMOutputError('No valid JSON object found in response.')
 
-    # load the action from the dict
-    return action_from_dict(action_dict)
+
+def my_encoder(obj):
+    """
+    Encodes objects as dictionaries
+
+    Parameters:
+    - obj (Object): An object that will be converted
+
+    Returns:
+    - dict: If the object can be converted it is returned in dict format
+    """
+    if hasattr(obj, 'to_dict'):
+        return obj.to_dict()
 
 
 def to_json(obj, **kwargs):
     """
     Serialize an object to str format
     """
-    return json.dumps(obj, **kwargs)
+    return json.dumps(obj, default=my_encoder, **kwargs)
 
 
 class MicroAgent(Agent):
@@ -43,7 +71,8 @@ class MicroAgent(Agent):
             state=state,
             instructions=instructions,
             to_json=to_json,
-            delegates=self.delegates)
+            delegates=self.delegates,
+        )
         messages = [{'content': prompt, 'role': 'user'}]
         resp = self.llm.completion(messages=messages)
         action_resp = resp['choices'][0]['message']['content']

@@ -2,8 +2,12 @@ import React from "react";
 import { render, waitFor, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react-dom/test-utils";
+import { describe, it, expect, vi, Mock } from "vitest";
 import FileExplorer from "./FileExplorer";
-import { getWorkspace } from "#/services/fileService";
+import { getWorkspace, uploadFile } from "#/services/fileService";
+import toast from "#/utils/toast";
+
+const toastSpy = vi.spyOn(toast, "stickyError");
 
 vi.mock("../../services/fileService", async () => ({
   getWorkspace: vi.fn(async () => ({
@@ -14,7 +18,7 @@ vi.mock("../../services/fileService", async () => ({
     ],
   })),
 
-  selectFile: vi.fn(async (file: string) => file),
+  uploadFile: vi.fn(),
 }));
 
 describe("FileExplorer", () => {
@@ -77,7 +81,7 @@ describe("FileExplorer", () => {
     });
 
     act(() => {
-      userEvent.click(getByTestId("close"));
+      userEvent.click(getByTestId("toggle"));
     });
 
     // it should be hidden rather than removed from the DOM

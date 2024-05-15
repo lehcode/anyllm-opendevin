@@ -1,5 +1,4 @@
 ARG node_version
-ARG npm_version
 FROM node:${node_version}-alpine as builder
 
 ARG node_version
@@ -35,9 +34,25 @@ WORKDIR $build_dir
 
 COPY frontend/*.json .
 COPY frontend/.npmrc .
+COPY frontend/postcss.config.js .
+COPY frontend/tailwind.config.js .
+COPY frontend/*.ts .
+COPY frontend/index.html .
+COPY frontend/src src
+COPY frontend/public public
+COPY frontend/scripts scripts
+COPY frontend/dist dist
+COPY .env .
+COPY frontend/.npmrc .
+COPY frontend/test-utils.tsx .
+COPY frontend/vite-env.d.ts .
+COPY frontend/vitest.setup.ts .
+
+ENV PATH="/usr/local/lib/bin:$PATH"
 
 RUN --mount=type=cache,target=$pm_cache_dir \
     if [ -n "${debug}" ]; then set -eux; fi && \
+    if [ -n package-lock.json ]; then rm -f package-lock.json; fi && \
     if [ -z .npmrc ]; then touch .npmrc; fi && \
     if [ -z "${debug}" ]; then echo "loglevel=silent" | tee -a ./.npmrc; fi && \
     sed -i 's/"packageManager": ".+@.+",/"packageManager": "yarn@'$(yarn --version)'",/' package.json > /dev/null && \
@@ -45,20 +60,10 @@ RUN --mount=type=cache,target=$pm_cache_dir \
     npm config set audit false && \
     npm config set fund false && \
     npm install -g npm@${npm_version} && \
-    yarn global add --prefix="${yarn_global_root}" classnames typescript webpack tsx @types/node \
+    yarn global add --prefix="${yarn_global_root}" typescript webpack tsx @types/node \
     vite nx@latest @nx/react && \
+    yarn add -D classnames && \
     yarn install
-
-ENV PATH="/usr/local/lib/bin:$PATH"
-
-COPY frontend/*.config.js .
-COPY frontend/index.html .
-COPY frontend/src src
-COPY frontend/public public
-COPY frontend/scripts scripts
-COPY frontend/dist dist
-#COPY frontend/.env .
-COPY docker/devin/web_ui/.env /tmp/docker.env
 
 #RUN if [ -n "${debug}" ]; then set -eux; fi && \
 #    cat /tmp/docker.env | tee -a .env > /dev/null && \
@@ -66,15 +71,13 @@ COPY docker/devin/web_ui/.env /tmp/docker.env
 
 RUN if [ -n "${debug}" ]; then set -eux; fi && \
     tsx && \
-    sed -i 's/^\/\/.+//g' vite.config.js && \
-#    ls -al . && cat vite.config.js && exit 1  && \
-    vite build --config vite.config.js --clearScreen false
+    vite build --config vite.config.ts --clearScreen false
 
-RUN if [ -n "${debug}" ]; then set -eux; fi && \
-    if [ "${node_env}" != "development" ]; then rm -rf /var/lib/apt/lists/*; fi && \
-    if [ "${node_env}" != "development" ]; then rm -rf ${pm_cache_dir}/*; fi && \
-    if [ "${node_env}" != "development" ]; then npm cache clean --force; fi && \
-    if [ "${node_env}" != "development" ]; then yarn cache clean; fi
+# RUN if [ -n "${debug}" ]; then set -eux; fi && \
+#     if [ "${node_env}" != "development" ]; then rm -rf /var/lib/apt/lists/*; fi && \
+#     if [ "${node_env}" != "development" ]; then rm -rf ${pm_cache_dir}/*; fi && \
+#     if [ "${node_env}" != "development" ]; then npm cache clean --force; fi && \
+#     if [ "${node_env}" != "development" ]; then yarn cache clean; fi
 
 COPY docker/devin/web_ui/entrypoint.sh /docker-entrypoint.sh
 
@@ -85,7 +88,6 @@ COPY docker/devin/web_ui/entrypoint.sh /docker-entrypoint.sh
 #ENV VITE_BACKEND_HOST=127.0.0.1:3017
 #ENV BACKEND_HOST=172.18.1.252:3017
 
-#EXPOSE ${VITE_FRONTEND_PORT}
+EXPOSE 5678
 
 ENTRYPOINT ["/bin/sh", "-c", "/docker-entrypoint.sh", "--"]
-#CMD "-m ${DEFAULT_CHAT_MODEL} -e ${DEFAULT_EMBEDDINGS_MODEL} --"

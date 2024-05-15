@@ -3,8 +3,6 @@ from opendevin.controller.state.state import State
 from opendevin.events.action import Action, AgentDelegateAction, AgentFinishAction
 from opendevin.events.observation import AgentDelegateObservation
 from opendevin.llm.llm import LLM
-from opendevin.observation import AgentDelegateObservation
-from opendevin.state import State
 
 
 class DelegatorAgent(Agent):
@@ -12,6 +10,7 @@ class DelegatorAgent(Agent):
     The planner agent utilizes a special prompting strategy to create long term plans for solving problems.
     The agent is given its previous action-observation pairs, current task, and hint based on last action taken at every step.
     """
+
     current_delegate: str = ''
 
     def __init__(self, llm: LLM):
@@ -37,9 +36,9 @@ class DelegatorAgent(Agent):
         """
         if self.current_delegate == '':
             self.current_delegate = 'study'
-            return AgentDelegateAction(agent='StudyRepoForTaskAgent', inputs={
-                'task': state.plan.main_goal
-            })
+            return AgentDelegateAction(
+                agent='StudyRepoForTaskAgent', inputs={'task': state.plan.main_goal}
+            )
 
         last_observation = state.history[-1][1]
         if not isinstance(last_observation, AgentDelegateObservation):

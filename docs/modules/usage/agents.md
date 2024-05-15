@@ -140,29 +140,3 @@ The agent is given its previous action-observation pairs, current task, and hint
 | `__init__`      | Initializes an agent with `llm`                                                                                                                                                           |
 | `step`          | Checks to see if current step is completed, returns `AgentFinishAction` if True. Otherwise, creates a plan prompt and sends to model for inference, adding the result as the next action. |
 | `search_memory` | Not yet implemented                                                                                                                                                                       |
-
-## CodeAct Agent
-
-### Description
-
-The Code Act Agent is a minimalist agent. The agent works by passing the model a list of action-observation pairs and prompting the model to take the next step.
-
-### Actions
-
-`Action`,
-`CmdRunAction`,
-`AgentEchoAction`,
-`AgentFinishAction`,
-
-### Observations
-
-`CmdOutputObservation`,
-`AgentMessageObservation`,
-
-### Methods
-
-| Method          | Description                                                                                                                                                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `__init__`      | Initializes an agent with `llm` and a list of messages `List[Mapping[str, str]]`                                                                                                                                                                        |
-| `step`          | First, gets messages from state and then compiles them into a list for context. Next, pass the context list with the prompt to get the next command to execute. Finally, Execute command if valid, else return `AgentEchoAction(INVALID_INPUT_MESSAGE)` |
-| `search_memory` | Not yet implemented                                                                                                                                                                                                                                     |

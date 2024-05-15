@@ -58,7 +58,8 @@ ten actions--more happened before that.
     "action": "modify_task",
     "args": {
       "id": "0",
-      "state": "in_progress"
+      "state": "in_progress",
+      "thought": ""
     }
   },
   {
@@ -109,4 +110,4 @@ actions are all `message` actions, you should consider taking a different action
 
 What is your next thought or action? Again, you must reply with JSON, and only with JSON.
 
-You just changed a file. You should think about how it affects your plan.
+Look at your last thought in the history above. What does it suggest? Don't think anymore--take action.

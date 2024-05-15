@@ -1,7 +1,9 @@
 import time
 from typing import TypedDict
 
-from opendevin.action import (
+from opendevin.controller.agent import Agent
+from opendevin.controller.state.state import State
+from opendevin.events.action import (
     Action,
     AddTaskAction,
     AgentFinishAction,
@@ -14,9 +16,7 @@ from opendevin.action import (
     MessageAction,
     ModifyTaskAction,
 )
-from opendevin.agent import Agent
-from opendevin.llm.llm import LLM
-from opendevin.observation import (
+from opendevin.events.observation import (
     AgentRecallObservation,
     CmdOutputObservation,
     FileReadObservation,
@@ -24,7 +24,7 @@ from opendevin.observation import (
     NullObservation,
     Observation,
 )
-from opendevin.state import State
+from opendevin.llm.llm import LLM
 
 """
 FIXME: There are a few problems this surfaced
@@ -140,16 +140,24 @@ class DummyAgent(Agent):
                 for i in range(len(expected_observations)):
                     hist_obs = state.history[hist_start + i][1].to_dict()
                     expected_obs = expected_observations[i].to_dict()
-                    if 'command_id' in hist_obs['extras'] and hist_obs['extras']['command_id'] != -1:
+                    if (
+                        'command_id' in hist_obs['extras']
+                        and hist_obs['extras']['command_id'] != -1
+                    ):
                         del hist_obs['extras']['command_id']
                         hist_obs['content'] = ''
-                    if 'command_id' in expected_obs['extras'] and expected_obs['extras']['command_id'] != -1:
+                    if (
+                        'command_id' in expected_obs['extras']
+                        and expected_obs['extras']['command_id'] != -1
+                    ):
                         del expected_obs['extras']['command_id']
                         expected_obs['content'] = ''
                     if hist_obs != expected_obs:
                         print('\nactual', hist_obs)
                         print('\nexpect', expected_obs)
-                    assert hist_obs == expected_obs, f'Expected observation {expected_obs}, got {hist_obs}'
+                    assert (
+                        hist_obs == expected_obs
+                    ), f'Expected observation {expected_obs}, got {hist_obs}'
         return self.steps[state.iteration]['action']
 
     def search_memory(self, query: str) -> list[str]:

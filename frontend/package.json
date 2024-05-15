@@ -25,6 +25,7 @@
     "react": "^18.2.0",
     "react-accessible-treeview": "^2.8.3",
     "react-dom": "^18.2.0",
+    "react-highlight": "^0.15.0",
     "react-hot-toast": "^2.4.1",
     "react-i18next": "^14.1.0",
     "react-icons": "^5.0.1",
@@ -38,21 +39,20 @@
   "scripts": {
     "start": "vite",
     "build": "tsc && vite build",
-    "test": "vitest",
+    "test": "vitest run",
     "preview": "vite preview",
     "make-i18n": "node scripts/make-i18n-translations.cjs",
     "prelint": "npm run make-i18n",
-    "lint": "eslint src/**/*.ts* && prettier --check src/**/*.ts*",
-    "prepare": "cd .. && husky install frontend/.husky",
-    "debug": "node --inspect=0.0.0.0:9229 node_modules/vite/bin/vite.js --host --port 8080"
+    "lint": "eslint src --ext .ts,.tsx,.js && prettier --check src/**/*.{ts,tsx}",
+    "prepare": "cd .. && husky install frontend/.husky"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "lint-staged"
+      "pre-commit": "npm run test && lint-staged"
     }
   },
   "lint-staged": {
-    "src/**/*.ts*": [
+    "src/**/*.{ts,tsx,js}": [
       "eslint --fix",
       "prettier --write"
     ]
@@ -65,11 +65,11 @@
     "@types/node": "^18.0.0 ",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
+    "@types/react-highlight": "^0.12.8",
     "@types/react-syntax-highlighter": "^15.5.11",
     "@typescript-eslint/eslint-plugin": "^7.4.0",
     "@typescript-eslint/parser": "^7.0.0",
     "autoprefixer": "^10.4.19",
-    "classnames": "^2.5.1",
     "eslint": "^8.57.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-typescript": "^18.0.0",

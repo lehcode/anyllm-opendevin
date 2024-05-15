@@ -1,6 +1,5 @@
 import asyncio
-import inspect
-import traceback
+from typing import Optional, Type
 
 from agenthub.codeact_agent.codeact_agent import CodeActAgent
 from opendevin.controller.agent import Agent
@@ -51,14 +50,13 @@ class AgentController:
     agent_task: Optional[asyncio.Task] = None
     delegate: 'AgentController | None' = None
     state: State | None = None
-
-    _task_state: TaskState = TaskState.INIT
+    _agent_state: AgentState = AgentState.LOADING
     _cur_step: int = 0
 
     def __init__(
         self,
         agent: Agent,
-        inputs: dict = {},
+        event_stream: EventStream,
         sid: str = 'default',
         max_iterations: int = MAX_ITERATIONS,
         max_chars: int = MAX_CHARS,
@@ -77,6 +75,10 @@ class AgentController:
         """
         self.id = sid
         self.agent = agent
+        self.event_stream = event_stream
+        self.event_stream.subscribe(
+            EventStreamSubscriber.AGENT_CONTROLLER, self.on_event
+        )
         self.max_iterations = max_iterations
 
         self.remind_iterations = remind_iterations
@@ -123,7 +125,7 @@ class AgentController:
         self, action: Action, observation: Observation, add_to_stream=True
     ):
         if self.state is None:
-            return
+            raise ValueError('Added history while state was None')
         if not isinstance(action, Action):
             raise TypeError(
                 f'action must be an instance of Action, got {type(action).__name__} instead'
@@ -134,12 +136,15 @@ class AgentController:
             )
         self.state.history.append((action, observation))
         self.state.updated_info.append((action, observation))
+        if add_to_stream:
+            await self.event_stream.add_event(action, EventSource.AGENT)
+            await self.event_stream.add_event(observation, EventSource.AGENT)
 
     async def _run(self):
         if self.state is None:
             return
 
-        if self._task_state != TaskState.RUNNING:
+        if self._agent_state != AgentState.RUNNING:
             raise ValueError('Task is not in running state')
 
         for i in range(self._cur_step, self.max_iterations):
@@ -147,33 +152,22 @@ class AgentController:
             try:
                 finished = await self.step(i)
                 if finished:
-                    self._task_state = TaskState.FINISHED
+                    await self.set_agent_state_to(AgentState.FINISHED)
+                    break
             except Exception:
                 logger.error('Error in loop', exc_info=True)
-                await self._run_callbacks(
-                    AgentErrorObservation('Oops! Something went wrong while completing your task. You can check the logs for more info.'))
-                await self.set_task_state_to(TaskState.STOPPED)
-                break
-
-            if self._task_state == TaskState.FINISHED:
-                logger.info('Task finished by agent')
-                await self.reset_task()
-                break
-            elif self._task_state == TaskState.STOPPED:
-                logger.info('Task stopped by user')
-                await self.reset_task()
-                break
-            elif self._task_state == TaskState.PAUSED:
-                logger.info('Task paused')
-                self._cur_step = i + 1
-                await self.notify_task_state_changed()
+                await self.set_agent_state_to(AgentState.ERROR)
+                await self.add_error_to_history(
+                    'Oops! Something went wrong while completing your task. You can check the logs for more info.'
+                )
                 break
 
             if self._is_stuck():
                 logger.info('Loop detected, stopping task')
-                observation = AgentErrorObservation('I got stuck into a loop, the task has stopped.')
-                await self._run_callbacks(observation)
-                await self.set_task_state_to(TaskState.STOPPED)
+                await self.set_agent_state_to(AgentState.ERROR)
+                await self.add_error_to_history(
+                    'I got stuck into a loop, the task has stopped.'
+                )
                 break
             await asyncio.sleep(
                 0.001
@@ -183,10 +177,8 @@ class AgentController:
             await self.set_agent_state_to(AgentState.PAUSED)
 
     async def setup_task(self, task: str, inputs: dict = {}):
-        """Sets up the agent controller with a task.
-        """
-        self._task_state = TaskState.RUNNING
-        await self.notify_task_state_changed()
+        """Sets up the agent controller with a task."""
+        await self.set_agent_state_to(AgentState.INIT)
         self.state = State(Plan(task))
         self.state.inputs = inputs
 
@@ -199,11 +191,11 @@ class AgentController:
                 await self.set_agent_state_to(AgentState.RUNNING)
 
     async def reset_task(self):
+        if self.agent_task is not None:
+            self.agent_task.cancel()
         self.state = None
         self._cur_step = 0
-        self._task_state = TaskState.INIT
         self.agent.reset()
-        await self.notify_task_state_changed()
 
     async def set_agent_state_to(self, new_state: AgentState):
         logger.info(
@@ -228,14 +220,14 @@ class AgentController:
             or new_state == AgentState.FINISHED
         ):
             await self.reset_task()
-        logger.info(f'Task state set to {state}')
 
-    def get_task_state(self):
+        await self.event_stream.add_event(
+            AgentStateChangedObservation('', self._agent_state), EventSource.AGENT
+        )
+
+    def get_agent_state(self):
         """Returns the current state of the agent task."""
-        return self._task_state
-
-    async def notify_task_state_changed(self):
-        await self._run_callbacks(TaskStateChangedAction(self._task_state))
+        return self._agent_state
 
     async def start_delegate(self, action: AgentDelegateAction):
         AgentCls: Type[Agent] = Agent.get_cls(action.agent)
@@ -243,9 +235,9 @@ class AgentController:
         self.delegate = AgentController(
             sid=self.id + '-delegate',
             agent=agent,
+            event_stream=self.event_stream,
             max_iterations=self.max_iterations,
             max_chars=self.max_chars,
-            callbacks=self.callbacks,
         )
         task = action.inputs.get('task') or ''
         await self.delegate.setup_task(task, action.inputs)
@@ -269,21 +261,21 @@ class AgentController:
             if delegate_done:
                 outputs = self.delegate.state.outputs if self.delegate.state else {}
                 obs: Observation = AgentDelegateObservation(content='', outputs=outputs)
-                self.add_history(NullAction(), obs)
+                await self.add_history(NullAction(), obs)
                 self.delegate = None
                 self.delegateAction = None
             return False
 
         logger.info(f'STEP {i}', extra={'msg_type': 'STEP'})
-        logger.info(self.state.plan.main_goal, extra={'msg_type': 'PLAN'})
+        if i == 0:
+            logger.info(self.state.plan.main_goal, extra={'msg_type': 'PLAN'})
         if self.state.num_of_chars > self.max_chars:
             raise MaxCharsExceedError(self.state.num_of_chars, self.max_chars)
 
         log_obs = self.runtime.get_background_obs()
         for obs in log_obs:
-            self.add_history(NullAction(), obs)
-            await self._run_callbacks(obs)
-            print_with_color(obs, 'BACKGROUND LOG')
+            await self.add_history(NullAction(), obs)
+            logger.info(obs, extra={'msg_type': 'BACKGROUND LOG'})
 
         self.update_state_for_step(i)
         action: Action = NullAction()
@@ -323,19 +315,6 @@ class AgentController:
         await self.add_history(action, observation)
         return False
 
-    async def _run_callbacks(self, event):
-        if event is None:
-            return
-        for callback in self.callbacks:
-            idx = self.callbacks.index(callback)
-            try:
-                await callback(event)
-            except Exception as e:
-                logger.exception(f'Callback error: {e}, idx: {idx}')
-        await asyncio.sleep(
-            0.001
-        )  # Give back control for a tick, so we can await in callbacks
-
     def get_state(self):
         return self.state
 
@@ -353,11 +332,16 @@ class AgentController:
         # if the last three (Action, Observation) tuples are too repetitive
         # the agent got stuck in a loop
         if all(
-            [self.state.history[-i][0] == self.state.history[-3][0] for i in range(1, 3)]
+            [
+                self.state.history[-i][0] == self.state.history[-3][0]
+                for i in range(1, 3)
+            ]
         ):
             # it repeats same action, give it a chance, but not if:
-            if (all
-                    (isinstance(self.state.history[-i][1], NullObservation) for i in range(1, 4))):
+            if all(
+                isinstance(self.state.history[-i][1], NullObservation)
+                for i in range(1, 4)
+            ):
                 # same (Action, NullObservation): like 'think' the same thought over and over
                 logger.debug('Action, NullObservation loop detected')
                 return True

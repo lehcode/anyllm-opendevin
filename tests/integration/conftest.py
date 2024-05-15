@@ -1,3 +1,4 @@
+import io
 import os
 import re
 from functools import partial
@@ -10,7 +11,7 @@ workspace_path = os.getenv('WORKSPACE_BASE')
 
 
 def filter_out_symbols(input):
-    return ' '.join([char for char in input if char.isalnum()])
+    return ' '.join([char for char in input if char.isalpha()])
 
 
 def get_log_id(prompt_log_name):
@@ -99,7 +100,7 @@ def patch_completion(monkeypatch, request):
         monkeypatch.setattr('sys.stdin', user_responses)
 
 
-def set_up():
+def clean_up():
     assert workspace_path is not None
     if os.path.exists(workspace_path):
         for file in os.listdir(workspace_path):
@@ -108,8 +109,9 @@ def set_up():
 
 @pytest.fixture(autouse=True)
 def resource_setup():
-    set_up()
+    clean_up()
     if not os.path.exists(workspace_path):
         os.makedirs(workspace_path)
     # Yield to test execution
     yield
+    clean_up()

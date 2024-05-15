@@ -30,6 +30,7 @@ Here is a list of available Actions, which can be returned by `agent.step()`:
 
 - [`CmdRunAction`](../opendevin/action/bash.py) - Runs a command inside a sandboxed terminal
 - [`CmdKillAction`](../opendevin/action/bash.py) - Kills a background command
+- [`IPythonRunCellAction`](../opendevin/action/bash.py) - Execute a block of Python code interactively (in Jupyter notebook) and receives `CmdOutputObservation`. Requires setting up `jupyter` [plugin](../opendevin/sandbox/plugins) as a requirement.
 - [`FileReadAction`](../opendevin/action/fileop.py) - Reads the content of a file
 - [`FileWriteAction`](../opendevin/action/fileop.py) - Writes new content to a file
 - [`BrowseURLAction`](../opendevin/action/browse.py) - Gets the content of a URL

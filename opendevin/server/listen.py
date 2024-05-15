@@ -1,8 +1,8 @@
 import json
+import shutil
 import uuid
 import warnings
 from pathlib import Path
-import os
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
@@ -24,13 +24,9 @@ from opendevin.server.auth import get_sid_from_token, sign_token
 from opendevin.server.session import message_stack, session_manager
 
 app = FastAPI()
-
-# Split the origins string into a list
-allowed_origins = os.getenv("ALLOWED_CORS_ORIGINS", "").split(",")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=['http://localhost:3001'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -149,7 +145,7 @@ async def get_agents():
 
 @app.get('/api/auth')
 async def get_token(
-        credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     """
     Generate a JWT for authentication when starting a WebSocket connection. This endpoint checks if valid credentials
@@ -178,7 +174,7 @@ async def get_token(
 
 @app.get('/api/messages')
 async def get_messages(
-        credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     """
     Get messages.
@@ -198,7 +194,7 @@ async def get_messages(
 
 @app.get('/api/messages/total')
 async def get_message_total(
-        credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     """
     Get total message count.
@@ -212,9 +208,9 @@ async def get_message_total(
     return {'msg_total': message_stack.get_message_total(sid)}
 
 
-@app.delete('/messages')
+@app.delete('/api/messages')
 async def del_messages(
-        credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ):
     """
     Delete messages.
@@ -347,5 +343,6 @@ async def docs_redirect():
     """
     response = RedirectResponse(url='/index.html')
     return response
+
 
 app.mount('/', StaticFiles(directory='./frontend/dist'), name='dist')

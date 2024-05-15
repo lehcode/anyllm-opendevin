@@ -5,6 +5,7 @@ import pytest
 from opendevin.core.config import config
 from opendevin.events.action import files
 
+SANDBOX_PATH_PREFIX = '/workspace'
 
 
 def test_resolve_path():
@@ -33,9 +34,9 @@ def test_resolve_path():
         == Path(config.workspace_base) / 'test.txt'
     )
     with pytest.raises(PermissionError):
-        fileop.resolve_path(Path(fileop.SANDBOX_PATH_PREFIX) / '..' / 'test.txt', '/workspace')
+        files.resolve_path(Path(SANDBOX_PATH_PREFIX) / '..' / 'test.txt', '/workspace')
     with pytest.raises(PermissionError):
-        fileop.resolve_path(Path('..') / 'test.txt', '/workspace')
+        files.resolve_path(Path('..') / 'test.txt', '/workspace')
     with pytest.raises(PermissionError):
         files.resolve_path(Path('/') / 'test.txt', '/workspace')
     assert (

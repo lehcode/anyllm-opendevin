@@ -2,8 +2,11 @@ enum ActionType {
   // Initializes the agent. Only sent by client.
   INIT = "initialize",
 
-  // Starts a new development task. Only sent by the client.
+  // Starts a new development task.
   START = "start",
+
+  // Represents a message from the user or agent.
+  MESSAGE = "message",
 
   // Reads the contents of a file.
   READ = "read",
@@ -13,6 +16,9 @@ enum ActionType {
 
   // Runs a command.
   RUN = "run",
+
+  // Runs a IPython command.
+  RUN_IPYTHON = "run_ipython",
 
   // Kills a background command.
   KILL = "kill",
@@ -33,7 +39,8 @@ enum ActionType {
   // Updates a task in the plan.
   MODIFY_TASK = "modify_task",
 
-  CHANGE_TASK_STATE = "change_task_state",
+  // Changes the state of the agent, e.g. to paused or running
+  CHANGE_AGENT_STATE = "change_agent_state",
 }
 
 export default ActionType;

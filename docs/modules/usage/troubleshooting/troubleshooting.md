@@ -5,7 +5,7 @@ sidebar_position: 5
 # 🚧 Troubleshooting
 
 There are some error messages that get reported over and over by users.
-We'll try and make the install process easier, and to make these error messages
+We'll try to make the install process easier, and to make these error messages
 better in the future. But for now, you can look for your error message below,
 and see if there are any workaround.
 
@@ -19,12 +19,14 @@ open a PR to add details to this file.
 If you're running on Windows and having trouble, check out our [guide for Windows users](troubleshooting/windows)
 :::
 
-## [Unable to connect to docker](https://github.com/OpenDevin/OpenDevin/issues/1226)
+## Unable to connect to docker
+
+[GitHub Issue](https://github.com/OpenDevin/OpenDevin/issues/1226)
 
 ### Symptoms
 
 ```
-Error creating controller. Please check Docker is running and visit `https://github.com/OpenDevin/OpenDevin/blob/main/docs/guides/Troubleshooting.md` for more debugging information.
+Error creating controller. Please check Docker is running and visit `https://opendevin.github.io/OpenDevin/modules/usage/troubleshooting` for more debugging information.
 ```
 
 ```
@@ -40,9 +42,9 @@ OpenDevin uses a docker container to do its work safely, without potentially bre
 * Run `docker ps` to ensure that docker is running
 * Make sure you don't need `sudo` to run docker [see here](https://www.baeldung.com/linux/docker-run-without-sudo)
 * If you are on a mac, check the [permissions requirements](https://docs.docker.com/desktop/mac/permission-requirements/) and in particular consider enabling the "Allow the default Docker socket to be used" under "Settings > Advanced" in Docker Desktop.
-* If you are on a mac, Upgrade your Docker to the latest version under "Check for Updates"
 
-## [Unable to connect to SSH box](https://github.com/OpenDevin/OpenDevin/issues/1156)
+## Unable to connect to SSH box
+[GitHub Issue](https://github.com/OpenDevin/OpenDevin/issues/1156)
 
 ### Symptoms
 
@@ -64,7 +66,8 @@ especially Windows, this seems to fail.
 - Try [this reinstallation guide](https://github.com/OpenDevin/OpenDevin/issues/1156#issuecomment-2064549427)
 - Set `-e SANDBOX_TYPE=exec` to switch to the ExecBox docker container
 
-## [Unable to connect to LLM](https://github.com/OpenDevin/OpenDevin/issues/1208)
+## Unable to connect to LLM
+[GitHub Issue](https://github.com/OpenDevin/OpenDevin/issues/1208)
 
 ### Symptoms
 
@@ -76,6 +79,8 @@ AttributeError: 'NoneType' object has no attribute 'request'
 ```
 
 ### Details
+
+[GitHub Issues](https://github.com/OpenDevin/OpenDevin/issues?q=is%3Aissue+is%3Aopen+404)
 
 This usually happens with local LLM setups, when OpenDevin can't connect to the LLM server.
 See our guide for [local LLMs](llms/localLLMs) for more information.

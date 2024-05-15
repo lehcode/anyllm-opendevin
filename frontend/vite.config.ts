@@ -21,11 +21,7 @@ export default defineConfig(({ mode }) => {
   const WS_URL = `${WS_PROTOCOL}://${VITE_BACKEND_HOST}/`;
   const FE_PORT = Number.parseInt(VITE_FRONTEND_PORT, 10);
 
-  // eslint-disable-next-line
-  console.log(API_URL);
-  console.log(WS_URL);
   console.log(FE_PORT);
-  // exit(1);
 
   // check BACKEND_HOST is something like "example.com"
   if (!VITE_BACKEND_HOST.match(/^([\w\d-]+(\.[\w\d-]+)+(:\d+)?)/)) {

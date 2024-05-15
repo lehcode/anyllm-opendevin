@@ -35,15 +35,22 @@ else:
 
 
 def attempt_on_error(retry_state):
-    logger.error(f'{retry_state.outcome.exception()}. Attempt #{retry_state.attempt_number} | You can customize these settings in the configuration.', exc_info=False)
+    logger.error(
+        f'{retry_state.outcome.exception()}. Attempt #{retry_state.attempt_number} | You can customize these settings in the configuration.',
+        exc_info=False,
+    )
     return True
 
 
-@retry(reraise=True,
-       stop=stop_after_attempt(num_retries),
-       wait=wait_random_exponential(min=retry_min_wait, max=retry_max_wait),
-       retry=retry_if_exception_type((RateLimitError, APIConnectionError, InternalServerError)),
-       after=attempt_on_error)
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(num_retries),
+    wait=wait_random_exponential(min=retry_min_wait, max=retry_max_wait),
+    retry=retry_if_exception_type(
+        (RateLimitError, APIConnectionError, InternalServerError)
+    ),
+    after=attempt_on_error,
+)
 def wrapper_get_embeddings(*args, **kwargs):
     return original_get_embeddings(*args, **kwargs)
 

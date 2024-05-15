@@ -19,13 +19,14 @@ if [ -n "${DEBUG}" ] || [ -n "${DEV_MODE}" ]; then
 fi
 
 if [ -z environment.yml ]; then
-  conda env export -q --name "${VENV_NAME}" --file environment.yml
+    conda env export -q --name "${VENV_NAME}" --file environment.yml
 fi
 
 # Start API server
-if [ -n "${DEV_MODE}" ]; then
-    python3 -m debugpy --listen 5678 --wait-for-client -c 'import uvicorn; uvicorn.run("opendevin.server.listen:app", host="0.0.0.0", port='${DEVIN_API_PORT}', reload=True, log_level="debug")'
-else
-    python3 -c 'import uvicorn; uvicorn.run("opendevin.server.listen:app", host="0.0.0.0", port='${DEVIN_API_PORT}', log_level="critical")'
-fi
+python3 -c 'import uvicorn; uvicorn.run("opendevin.server.listen:app", host="0.0.0.0", port='${DEVIN_API_PORT}', reload=True, log_level="debug")'
+# if [ -n "${DEV_MODE}" ]; then
+#     python3 -m debugpy --listen 5678 -c 'import uvicorn; uvicorn.run("opendevin.server.listen:app", host="0.0.0.0", port='${DEVIN_API_PORT}', reload=True, log_level="debug")'
+# else
+#     python3 -c 'import uvicorn; uvicorn.run("opendevin.server.listen:app", host="0.0.0.0", port='${DEVIN_API_PORT}', log_level="critical")'
+# fi
 

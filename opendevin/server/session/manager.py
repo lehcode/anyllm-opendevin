@@ -7,7 +7,7 @@ from typing import Callable
 
 from fastapi import WebSocket
 
-from opendevin.logger import opendevin_logger as logger
+from opendevin.core.logger import opendevin_logger as logger
 
 from .msg_stack import message_stack
 from .session import Session

@@ -3,7 +3,7 @@ services:
   devin:
     container_name: devin_api
     hostname: devin-api
-    image: lehcode/opendevin_api-cuda${CUDA_VERSION:?}-miniconda:dev
+    image: lehcode/opendevin_api:cuda${CUDA_VERSION:?}-${CUDA_DRIVER_BRANCH:?}-python3.12-miniconda3
     pull_policy: always
     # Override the default models and rebuild image with restart container then
     # These arguments will override defaults
@@ -78,7 +78,7 @@ services:
   web_ui:
     container_name: devin_web
     hostname: devin_web
-    image: lehcode/opendevin_ui-node${NODE_VERSION:?}-npm${NPM_VERSION}-pnpm-reactjs:dev
+    image: lehcode/opendevin_ui:node${NODE_VERSION:?}-npm${NPM_VERSION:?}-yarn-reactjs
     pull_policy: always
     build:
       dockerfile: docker/devin/web_ui/${UI_BUILD_DOCKERFILE:?}
@@ -88,17 +88,16 @@ services:
         - node_env=${NODE_ENV:?}
         - debug=${DEBUG}
         - node_options=${NODE_OPTIONS}
-        - frontend_port=${UI_HTTP_PORT:?}
         - dev_mode=${DEV_MODE}
-        - backend_host=${DEVIN_IP:?}:${DEVIN_API_PORT:?}
     env_file:
       - ./.env
 #      - docker/devin/web_ui/.env
+    entrypoint: /docker-entrypoint.sh
     environment:
       - VITE_USE_TLS=false
       - VITE_INSECURE_SKIP_VERIFY=false
       - VITE_BACKEND_HOST=${DEVIN_IP:?}:${DEVIN_API_PORT:?}
-#      - FRONTEND_PORT=${UI_HTTP_PORT:?}
+      - VITE_FRONTEND_PORT=${UI_HTTP_PORT:?}
       - LLM_PROXY_HOST=litellm
       - LLM_PROXY_PORT=${LITELLM_PORT:?}
     networks:

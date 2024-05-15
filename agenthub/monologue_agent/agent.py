@@ -14,10 +14,7 @@ from opendevin.events.action import (
     MessageAction,
     NullAction,
 )
-from opendevin.agent import Agent
-from opendevin.exceptions import AgentNoInstructionError
-from opendevin.llm.llm import LLM
-from opendevin.observation import (
+from opendevin.events.observation import (
     AgentRecallObservation,
     BrowserOutputObservation,
     CmdOutputObservation,
@@ -25,6 +22,7 @@ from opendevin.observation import (
     NullObservation,
     Observation,
 )
+from opendevin.events.serialization.event import event_to_memory
 from opendevin.llm.llm import LLM
 from opendevin.memory.condenser import MemoryCondenser
 from opendevin.memory.history import ShortTermHistory
@@ -32,7 +30,7 @@ from opendevin.memory.history import ShortTermHistory
 if config.agent.memory_enabled:
     from opendevin.memory.memory import LongTermMemory
 
-MAX_MONOLOGUE_LENGTH = 20000
+MAX_TOKEN_COUNT_PADDING = 512
 MAX_OUTPUT_LENGTH = 5000
 
 INITIAL_THOUGHTS = [
@@ -56,7 +54,7 @@ INITIAL_THOUGHTS = [
     'RUN echo "hello world"',
     'hello world',
     'Cool! I bet I can write files too using the write action.',
-    "WRITE echo \"console.log('hello world')\" > test.js",
+    'WRITE echo "console.log(\'hello world\')" > test.js',
     '',
     "I just created test.js. I'll try and run it now.",
     'RUN node test.js',
@@ -142,9 +140,10 @@ class MonologueAgent(Agent):
 
     def _initialize(self, task: str):
         """
-        Utilizes the INITIAL_THOUGHTS list to give the agent a context for it's capabilities
+        Utilizes the INITIAL_THOUGHTS list to give the agent a context for its capabilities
         and how to navigate the WORKSPACE_MOUNT_PATH_IN_SANDBOX in `config` (e.g., /workspace by default).
         Short circuited to return when already initialized.
+        Will execute again when called after reset.
 
         Parameters:
         - task (str): The initial goal statement provided by the user
@@ -183,13 +182,12 @@ class MonologueAgent(Agent):
                 elif previous_action == ActionType.READ:
                     observation = FileReadObservation(content=thought, path='')
                 elif previous_action == ActionType.RECALL:
-                    observation = AgentRecallObservation(
-                        content=thought, memories=[])
+                    observation = AgentRecallObservation(content=thought, memories=[])
                 elif previous_action == ActionType.BROWSE:
                     observation = BrowserOutputObservation(
                         content=thought, url='', screenshot=''
                     )
-                self._add_event(observation.to_memory())
+                self._add_event(event_to_memory(observation))
                 previous_action = ''
             else:
                 action: Action = NullAction()
@@ -216,8 +214,7 @@ class MonologueAgent(Agent):
                     previous_action = ActionType.BROWSE
                 else:
                     action = MessageAction(thought)
-                self._add_event(action.to_memory())
-        self._initialized = True
+                self._add_event(event_to_memory(action))
 
     def step(self, state: State) -> Action:
         """
@@ -229,15 +226,17 @@ class MonologueAgent(Agent):
         Returns:
         - Action: The next action to take based on LLM response
         """
-        self._initialize(state.plan.main_goal)
+
+        goal = state.get_current_user_intent()
+        self._initialize(goal)
         for prev_action, obs in state.updated_info:
-            self._add_event(prev_action.to_memory())
-            self._add_event(obs.to_memory())
+            self._add_event(event_to_memory(prev_action))
+            self._add_event(event_to_memory(obs))
 
         state.updated_info = []
 
         prompt = prompts.get_request_action_prompt(
-            state.plan.main_goal,
+            goal,
             self.monologue.get_events(),
             state.background_commands_obs,
         )
@@ -266,8 +265,6 @@ class MonologueAgent(Agent):
 
     def reset(self) -> None:
         super().reset()
-        self.monologue = Monologue()
-        if config.get(ConfigType.AGENT_MEMORY_ENABLED):
-            self.memory = LongTermMemory()
-        else:
-            self.memory = None
+
+        # Reset the initial monologue and memory
+        self._initialized = False

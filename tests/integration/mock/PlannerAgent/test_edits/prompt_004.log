@@ -75,7 +75,7 @@ ten actions--more happened before that.
       "path": "bad.txt",
       "start": 0,
       "end": -1,
-      "thoughts": ""
+      "thought": ""
     }
   },
   {
@@ -83,22 +83,6 @@ ten actions--more happened before that.
     "content": "This is a stupid typoo.\nReally?\nNo mor typos!\nEnjoy!\n",
     "extras": {
       "path": "bad.txt"
-    }
-  },
-  {
-    "action": "run",
-    "args": {
-      "command": "bash hello.sh",
-      "background": false
-    }
-  },
-  {
-    "observation": "run",
-    "content": "hello",
-    "extras": {
-      "command_id": -1,
-      "command": "bash hello.sh",
-      "exit_code": 0
     }
   }
 ]
